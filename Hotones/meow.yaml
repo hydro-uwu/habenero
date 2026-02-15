@@ -1,0 +1,30 @@
+name: Hotones
+version: 0.1.0
+description: A HotOnes cpp project
+authors:
+  - charlie-san
+  - exxon47
+type: cpp
+main: src/main.cpp
+build:
+  mode: debug
+  output: build
+  target: debug
+  compiler: cpp
+  incremental: true
+  wildcard: true
+  link: true
+  objdir: build/obj
+  extraArgs: [" -Isrc/include -lraylib"]
+  testMain: ''
+  testExtraArgs: []
+  futLanguage: ''
+  futName: ''
+  futDefines: []
+  futIncludes: []
+  futReadOnly: []
+  futExtraArgs: []
+dependencies: {}
+dependencyCategories: {}
+devDependencies: {}
+scripts: {run: "g++ build/obj/*.cpp.o -fPIC -shared"}

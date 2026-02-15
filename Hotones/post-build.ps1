@@ -1,0 +1,1 @@
+cp build/Hotones.dll ../out/hotones.dll
