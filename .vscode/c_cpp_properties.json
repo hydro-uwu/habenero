@@ -5,7 +5,8 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/src/Hotones/src/include",
-                "${workspaceFolder}/Hotones/src/include"
+                "${workspaceFolder}/Hotones/src/include",
+                "C:\\msys64\\mingw64\\include"
             ],
             "defines": [
                 "_DEBUG",
@@ -14,11 +15,8 @@
             ],
             "windowsSdkVersion": "10.0.26100.0",
             "compilerPath": "C:/msys64/usr/bin/g++.exe",
-            "cStandard": "c17",
-            "cppStandard": "c++17",
-            "compilerArgs": [
-                "-isrc/include"
-            ]
+            "cStandard": "c23",
+            "cppStandard": "c++26"
         }
     ],
     "version": 4
