@@ -11,6 +11,11 @@ GameScene::GameScene()
     camera = { 0 };
 }
 
+GameScene::~GameScene()
+{
+    Unload();
+}
+
 void GameScene::Init()
 {
     camera.fovy = 60.0f;

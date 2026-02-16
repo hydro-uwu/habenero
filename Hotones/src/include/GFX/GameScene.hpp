@@ -10,7 +10,7 @@ namespace Hotones {
 class GameScene : public Scene {
 public:
     GameScene();
-    ~GameScene() override = default;
+    ~GameScene() override;
 
     void Init() override;
     void Update() override;
