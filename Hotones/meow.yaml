@@ -27,4 +27,4 @@ build:
 dependencies: {}
 dependencyCategories: {}
 devDependencies: {}
-scripts: {run: "g++ build/obj/*.cpp.o -fPIC -shared"}
+scripts: {run: "meow build ; ./build/Hotones.exe"}

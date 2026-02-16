@@ -1,87 +1,55 @@
 #pragma once
 
 #include <raylib.h>
-#include <Hotones.hpp>
-#include <cmath>
+#include <raymath.h>
 
 namespace Hotones {
 
 class Player {
 public:
-    Vector3 position;
-    float yaw;            // degrees
-    float pitch;          // degrees
-    float speed;          // units per second
-    float mouseSensitivity;
-    float radius;
+    // Movement constants
+    static constexpr float GRAVITY = 32.0f;
+    static constexpr float MAX_SPEED = 20.0f;
+    static constexpr float CROUCH_SPEED = 5.0f;
+    static constexpr float JUMP_FORCE = 12.0f;
+    static constexpr float MAX_ACCEL = 150.0f;
+    static constexpr float FRICTION = 0.86f;
+    static constexpr float AIR_DRAG = 0.98f;
+    static constexpr float CONTROL = 15.0f;
+    static constexpr float CROUCH_HEIGHT = 0.0f;
+    static constexpr float STAND_HEIGHT = 1.0f;
+    static constexpr float BOTTOM_HEIGHT = 0.5f;
 
-    Player()
-        : position{0.0f, 0.5f, 0.0f}, yaw(0.0f), pitch(0.0f), speed(4.0f), mouseSensitivity(0.15f), radius(0.35f) {}
+    struct Body {
+        Vector3 position;
+        Vector3 velocity;
+        Vector3 dir;
+        bool isGrounded;
+    };
 
+    Player();
     ~Player() = default;
 
-    void update() {
-        float dt = GetFrameTime();
+    void Update();
+    void AttachCamera(Camera* camera);
+    void Render();
 
-        // Mouse look (hold right mouse button)
-        if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
-            Vector2 md = GetMouseDelta();
-            yaw += md.x * mouseSensitivity;
-            pitch -= md.y * mouseSensitivity;
-            if (pitch > 89.0f) pitch = 89.0f;
-            if (pitch < -89.0f) pitch = -89.0f;
-        }
+    // Body state
+    Body body;
+    Vector2 lookRotation;
+    Vector2 sensitivity;
+    
+    // Animation/Transition state
+    float headTimer;
+    float walkLerp;
+    float headLerp;
+    Vector2 lean;
 
-        // Movement relative to yaw
-        float yawRad = yaw * DEG2RAD;
-        Vector3 forward = { sinf(yawRad), 0.0f, cosf(yawRad) };
-        Vector3 right = { cosf(yawRad), 0.0f, -sinf(yawRad) };
+private:
+    Camera* m_attachedCamera;
 
-        Vector3 move = { 0.0f, 0.0f, 0.0f };
-        if (IsKeyDown(KEY_W)) { move.x += forward.x; move.z += forward.z; }
-        if (IsKeyDown(KEY_S)) { move.x -= forward.x; move.z -= forward.z; }
-        if (IsKeyDown(KEY_A)) { move.x -= right.x;   move.z -= right.z; }
-        if (IsKeyDown(KEY_D)) { move.x += right.x;   move.z += right.z; }
-
-        float currSpeed = speed * (IsKeyDown(KEY_LEFT_SHIFT) ? 2.0f : 1.0f);
-        float len = sqrtf(move.x*move.x + move.z*move.z);
-        if (len > 0.0001f) {
-            move.x = (move.x / len) * currSpeed * dt;
-            move.z = (move.z / len) * currSpeed * dt;
-            position.x += move.x;
-            position.z += move.z;
-        }
-
-        // Keep player on ground level (y)
-        // position.y = 0.5f; // uncomment if fixed-ground desired
-
-        // Update shared camera (third-person follow)
-        if (Hotones::core::camera) {
-            Vector3 camOffset = { 0.0f, 1.5f, -3.0f };
-            float cosY = cosf(yawRad);
-            float sinY = sinf(yawRad);
-            Vector3 rotated = {
-                camOffset.x * cosY - camOffset.z * sinY,
-                camOffset.y,
-                camOffset.x * sinY + camOffset.z * cosY
-            };
-
-            Hotones::core::camera->position = { position.x + rotated.x, position.y + rotated.y + 0.25f, position.z + rotated.z };
-            Hotones::core::camera->target = { position.x, position.y + 0.5f, position.z };
-            Hotones::core::camera->up = { 0.0f, 1.0f, 0.0f };
-        }
-    }
-
-    void render() {
-        // Simple visual representation
-        DrawCube(position, radius * 2.0f, 1.0f, radius * 2.0f, BLUE);
-        DrawCubeWires(position, radius * 2.0f, 1.0f, radius * 2.0f, DARKBLUE);
-
-        // Direction indicator
-        float yawRad = yaw * DEG2RAD;
-        Vector3 dir = { sinf(yawRad), 0.0f, cosf(yawRad) };
-        DrawLine3D(position, { position.x + dir.x, position.y + 0.5f, position.z + dir.z }, RED);
-    }
+    void UpdateBody(char side, char forward, bool jumpPressed, bool crouchHold);
+    void UpdateCamera();
 };
 
 } // namespace Hotones
