@@ -1,4 +1,4 @@
-#include "TransitionScene.hpp"
+#include <GFX/TransitionScene.hpp>
 #include <raymath.h>
 
 namespace Hotones {

@@ -1,10 +1,10 @@
 #include <raylib.h>
 #include <raymath.h>
-#include <Player.hpp>
-#include <SceneManager.hpp>
-#include "GFX/LoadingScene.hpp"
-#include "GFX/SimpleScene.hpp"
-#include "GFX/GameScene.hpp"
+#include <GFX/Player.hpp>
+#include <GFX/SceneManager.hpp>
+#include <GFX/LoadingScene.hpp>
+#include <GFX/SimpleScene.hpp>
+#include <GFX/GameScene.hpp>
 
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
@@ -36,7 +36,6 @@ int main(void)
     };
 
     player.AttachCamera(&camera);
-
     // Scene manager + scenes
     Hotones::SceneManager sceneMgr;
     sceneMgr.Add("loading", [](){ return std::make_unique<Hotones::LoadingScene>(); });
@@ -59,7 +58,7 @@ int main(void)
         // If loading finished, switch to game
         if (sceneMgr.GetCurrentName() == "loading" && sceneMgr.GetCurrent() && sceneMgr.GetCurrent()->IsFinished()) {
             // use an animated transition when switching to the game scene
-            sceneMgr.SwitchWithTransition("game", 1.0f);
+            sceneMgr.SwitchWithTransition("game", 0.3f);
         }
         //----------------------------------------------------------------------------------
 

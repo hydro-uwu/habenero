@@ -1,0 +1,250 @@
+#include <GFX/CollidableModel.hpp>
+#include "AssetPath.hpp"
+#include <raylib.h>
+#include <raymath.h>
+
+namespace Hotones {
+
+CollidableModel::CollidableModel(const std::string& path, Vector3 position)
+    : position(position)
+{
+    std::string resolved = ResolveAssetPath(path);
+    // If resolve returns empty or same as input, fall back to provided path
+    const char* loadPath = (!resolved.empty() ? resolved.c_str() : path.c_str());
+    model = LoadModel(loadPath);
+    UpdateBoundingBox();
+}
+
+CollidableModel::~CollidableModel() {
+    UnloadModel(model);
+}
+
+void CollidableModel::Draw() {
+    DrawModel(model, position, 1.0f, WHITE);
+}
+
+void CollidableModel::SetPosition(Vector3 pos) {
+    position = pos;
+    UpdateBoundingBox();
+}
+
+Vector3 CollidableModel::GetPosition() const {
+    return position;
+}
+
+BoundingBox CollidableModel::GetBoundingBox() const {
+    return bbox;
+}
+bool CollidableModel::CheckCollision(const BoundingBox& other) const {
+    return CheckCollisionBoxes(bbox, other);
+}
+
+bool CollidableModel::CheckCollision(Vector3 point) const {
+    return (point.x >= bbox.min.x && point.x <= bbox.max.x) &&
+           (point.y >= bbox.min.y && point.y <= bbox.max.y) &&
+           (point.z >= bbox.min.z && point.z <= bbox.max.z);
+}
+
+// Clamp point to box
+static Vector3 ClampPointToBox(const Vector3 &p, const BoundingBox &b) {
+    Vector3 out;
+    out.x = fmaxf(b.min.x, fminf(p.x, b.max.x));
+    out.y = fmaxf(b.min.y, fminf(p.y, b.max.y));
+    out.z = fmaxf(b.min.z, fminf(p.z, b.max.z));
+    return out;
+}
+
+bool CollidableModel::ResolveSphereCollision(Vector3 &center, float radius) {
+    bool collided = false;
+    if (model.meshCount <= 0) return false;
+
+    for (int i = 0; i < model.meshCount; i++) {
+        BoundingBox mb = GetMeshBoundingBox(model.meshes[i]);
+        // offset by model position
+        mb.min = Vector3Add(mb.min, position);
+        mb.max = Vector3Add(mb.max, position);
+
+        // find closest point on box to sphere center
+        Vector3 closest = ClampPointToBox(center, mb);
+        Vector3 diff = Vector3Subtract(center, closest);
+        float dist2 = Vector3DotProduct(diff, diff);
+        float r2 = radius * radius;
+        if (dist2 < r2) {
+            float dist = sqrtf(dist2);
+            Vector3 push;
+            if (dist > 0.0001f) {
+                push = Vector3Scale(diff, (radius - dist) / dist);
+            } else {
+                // center inside box exactly; push up
+                push = (Vector3){ 0.0f, radius + 0.001f, 0.0f };
+            }
+            center = Vector3Add(center, push);
+            collided = true;
+        }
+    }
+    return collided;
+}
+
+// Ray (segment) vs AABB slab intersection. Returns true if ray origin + d*t intersects box within t in [0,1].
+static bool RayAABBIntersect(const Vector3 &o, const Vector3 &d, const BoundingBox &b, float &tOut, int &hitAxis) {
+    const float EPS = 1e-8f;
+    float tmin = -INFINITY, tmax = INFINITY;
+    float t1, t2;
+    float ta[3], tb[3];
+    float od[3] = { o.x, o.y, o.z };
+    float dd[3] = { d.x, d.y, d.z };
+    float bmin[3] = { b.min.x, b.min.y, b.min.z };
+    float bmax[3] = { b.max.x, b.max.y, b.max.z };
+    for (int i = 0; i < 3; ++i) {
+        if (fabsf(dd[i]) < EPS) {
+            if (od[i] < bmin[i] || od[i] > bmax[i]) return false;
+            ta[i] = -INFINITY; tb[i] = INFINITY;
+        } else {
+            t1 = (bmin[i] - od[i]) / dd[i];
+            t2 = (bmax[i] - od[i]) / dd[i];
+            ta[i] = fminf(t1, t2);
+            tb[i] = fmaxf(t1, t2);
+        }
+    }
+    tmin = fmaxf(fmaxf(ta[0], ta[1]), ta[2]);
+    tmax = fminf(fminf(tb[0], tb[1]), tb[2]);
+    if (tmax < 0.0f) return false; // box is behind
+    if (tmin > tmax) return false;
+    // choose tmin as hit
+    float t = tmin;
+    // determine which axis caused tmin (closest)
+    hitAxis = 0;
+    float best = fabsf(t - ta[0]);
+    for (int i = 1; i < 3; ++i) {
+        float diff = fabsf(t - ta[i]);
+        if (diff < best) { best = diff; hitAxis = i; }
+    }
+    tOut = t;
+    return true;
+}
+
+bool Hotones::CollidableModel::SweepSphere(const Vector3 &start, const Vector3 &end, float radius, Vector3 &hitPos, Vector3 &hitNormal, float &t) {
+    Vector3 d = Vector3Subtract(end, start);
+    float segLen = Vector3Length(d);
+    if (segLen <= 1e-8f) return false;
+    // Direction for ray-AABB test
+    Vector3 dir = d;
+
+    bool found = false;
+    float bestT = 1.0f + 1e-6f;
+    BoundingBox bestBox;
+    int bestAxis = 0;
+
+    for (int i = 0; i < model.meshCount; i++) {
+        BoundingBox mb = GetMeshBoundingBox(model.meshes[i]);
+        // offset by model position
+        mb.min = Vector3Add(mb.min, position);
+        mb.max = Vector3Add(mb.max, position);
+        BoundingBox orig = mb; // original (offset)
+        // expand by radius
+        mb.min.x -= radius; mb.min.y -= radius; mb.min.z -= radius;
+        mb.max.x += radius; mb.max.y += radius; mb.max.z += radius;
+
+        float localT;
+        int axis;
+        if (!RayAABBIntersect(start, dir, mb, localT, axis)) continue;
+        // normalize t by segment length
+        float tNorm = localT / segLen;
+        if (tNorm >= 0.0f && tNorm <= 1.0f) {
+            if (tNorm < bestT) {
+                bestT = tNorm;
+                found = true;
+                bestBox = orig;
+                bestAxis = axis;
+            }
+        }
+    }
+
+    if (!found) {
+        // store last sweep
+        lastSweepHit = false;
+        lastSweepStart = start;
+        lastSweepEnd = end;
+        lastSweepT = 0.0f;
+        return false;
+    }
+
+    // compute hit position
+    hitPos = Vector3Add(start, Vector3Scale(d, bestT));
+    // compute hit normal by comparing hitPos to box faces
+    const BoundingBox &b = bestBox;
+    const float EPSN = 1e-3f;
+    // check which face is closest
+    float dxMin = fabsf(hitPos.x - b.min.x);
+    float dxMax = fabsf(hitPos.x - b.max.x);
+    float dyMin = fabsf(hitPos.y - b.min.y);
+    float dyMax = fabsf(hitPos.y - b.max.y);
+    float dzMin = fabsf(hitPos.z - b.min.z);
+    float dzMax = fabsf(hitPos.z - b.max.z);
+    // pick minimum distance
+    float minDist = dxMin; hitNormal = (Vector3){ -1,0,0 };
+    if (dxMax < minDist) { minDist = dxMax; hitNormal = (Vector3){ 1,0,0 }; }
+    if (dyMin < minDist) { minDist = dyMin; hitNormal = (Vector3){ 0,-1,0 }; }
+    if (dyMax < minDist) { minDist = dyMax; hitNormal = (Vector3){ 0,1,0 }; }
+    if (dzMin < minDist) { minDist = dzMin; hitNormal = (Vector3){ 0,0,-1 }; }
+    if (dzMax < minDist) { minDist = dzMax; hitNormal = (Vector3){ 0,0,1 }; }
+
+    t = bestT;
+
+    // store last sweep
+    lastSweepHit = true;
+    lastSweepStart = start;
+    lastSweepEnd = end;
+    lastSweepHitPos = hitPos;
+    lastSweepHitNormal = hitNormal;
+    lastSweepT = bestT;
+
+    return true;
+}
+
+void Hotones::CollidableModel::DrawDebug() const {
+    // draw per-mesh AABBs
+    for (int i = 0; i < model.meshCount; ++i) {
+        BoundingBox mb = GetMeshBoundingBox(model.meshes[i]);
+        mb.min = Vector3Add(mb.min, position);
+        mb.max = Vector3Add(mb.max, position);
+        DrawBoundingBox(mb, Fade(YELLOW, 0.5f));
+        DrawCubeWires((Vector3){ (mb.min.x+mb.max.x)/2.0f, (mb.min.y+mb.max.y)/2.0f, (mb.min.z+mb.max.z)/2.0f },
+                  mb.max.x - mb.min.x, mb.max.y - mb.min.y, mb.max.z - mb.min.z, ORANGE);
+    }
+
+    if (lastSweepHit) {
+        // Draw sweep line
+        DrawLine3D(lastSweepStart, lastSweepEnd, YELLOW);
+        // Draw hit position and normal
+        DrawSphere(lastSweepHitPos, 0.1f, GREEN);
+        DrawLine3D(lastSweepHitPos, Vector3Add(lastSweepHitPos, Vector3Scale(lastSweepHitNormal, 0.5f)), BLUE);
+    } else {
+        // draw attempted sweep line
+        DrawLine3D(lastSweepStart, lastSweepEnd, Fade(YELLOW, 0.25f));
+    }
+}
+
+void CollidableModel::UpdateBoundingBox() {
+    // Compute union of all mesh bounding boxes and offset by model position
+    if (model.meshCount > 0) {
+        BoundingBox accum = GetMeshBoundingBox(model.meshes[0]);
+        for (int i = 1; i < model.meshCount; ++i) {
+            BoundingBox mb = GetMeshBoundingBox(model.meshes[i]);
+            // expand accum to include mb
+            accum.min.x = fminf(accum.min.x, mb.min.x);
+            accum.min.y = fminf(accum.min.y, mb.min.y);
+            accum.min.z = fminf(accum.min.z, mb.min.z);
+            accum.max.x = fmaxf(accum.max.x, mb.max.x);
+            accum.max.y = fmaxf(accum.max.y, mb.max.y);
+            accum.max.z = fmaxf(accum.max.z, mb.max.z);
+        }
+        // apply model position offset
+        Vector3 offset = position;
+        accum.min = Vector3Add(accum.min, offset);
+        accum.max = Vector3Add(accum.max, offset);
+        bbox = accum;
+    }
+}
+
+} // namespace Hotones

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../include/Scene.hpp"
+#include <GFX/Scene.hpp>
 #include <raylib.h>
 
 #define LOADING_STAR_COUNT 420

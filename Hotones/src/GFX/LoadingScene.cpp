@@ -1,4 +1,4 @@
-#include "LoadingScene.hpp"
+#include <GFX/LoadingScene.hpp>
 #include <raymath.h>
 
 namespace Hotones {

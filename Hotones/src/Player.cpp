@@ -1,4 +1,5 @@
-#include <Player.hpp>
+#include <GFX/Player.hpp>
+#include <GFX/CollidableModel.hpp>
 #include <iostream>
 #include <cmath>
 
@@ -17,6 +18,10 @@ Player::Player() {
 
 void Player::AttachCamera(Camera* camera) {
     m_attachedCamera = camera;
+}
+
+void Player::AttachWorld(CollidableModel* world) {
+    m_worldModel = world;
 }
 
 void Player::Update() {
@@ -64,9 +69,23 @@ void Player::UpdateBody(char side, char forward, bool jumpPressed, bool crouchHo
 
     if (!body.isGrounded) body.velocity.y -= GRAVITY * delta;
 
-    if (body.isGrounded && jumpPressed) {
-        body.velocity.y = JUMP_FORCE;
-        body.isGrounded = false;
+    static bool wasJumpHeld = false;
+    if (enableSourceBhop) {
+        // Source bhop bug: allow holding jump to jump on landing
+        if (body.isGrounded && jumpPressed) {
+            body.velocity.y = JUMP_FORCE;
+            body.isGrounded = false;
+        } else if (body.isGrounded && wasJumpHeld && IsKeyDown(KEY_SPACE)) {
+            // If jump is still held from previous frame, auto-jump
+            body.velocity.y = JUMP_FORCE;
+            body.isGrounded = false;
+        }
+        wasJumpHeld = IsKeyDown(KEY_SPACE);
+    } else {
+        if (body.isGrounded && jumpPressed) {
+            body.velocity.y = JUMP_FORCE;
+            body.isGrounded = false;
+        }
     }
 
     Vector3 front = (Vector3){ sinf(lookRotation.x), 0.f, cosf(lookRotation.x) };
@@ -83,21 +102,85 @@ void Player::UpdateBody(char side, char forward, bool jumpPressed, bool crouchHo
 
     float speed = Vector3DotProduct(hvel, body.dir);
     float maxSpeed = (crouchHold ? CROUCH_SPEED : MAX_SPEED);
-    float accel = Clamp(maxSpeed - speed, 0.f, MAX_ACCEL * delta);
+    float accel;
+    if (enableSourceBhop) {
+        // Allow speed to build up beyond maxSpeed when bhopping
+        accel = Clamp(MAX_ACCEL * 0.1f, 0.f, MAX_ACCEL * delta);
+    } else {
+        accel = Clamp(maxSpeed - speed, 0.f, MAX_ACCEL * delta);
+    }
     hvel.x += body.dir.x * accel;
     hvel.z += body.dir.z * accel;
 
     body.velocity.x = hvel.x;
     body.velocity.z = hvel.z;
 
-    body.position.x += body.velocity.x * delta;
-    body.position.y += body.velocity.y * delta;
-    body.position.z += body.velocity.z * delta;
+    Vector3 startPos = body.position;
+    Vector3 remaining = Vector3{ body.velocity.x * delta, body.velocity.y * delta, body.velocity.z * delta };
+    const float playerRadius = 0.5f;
+
+    if (m_worldModel) {
+        const int maxIters = 3;
+        Vector3 curr = startPos;
+        for (int iter = 0; iter < maxIters; ++iter) {
+            Vector3 target = Vector3Add(curr, remaining);
+            Vector3 hitPos, hitNormal; float tHit;
+            if (!m_worldModel->SweepSphere(curr, target, playerRadius, hitPos, hitNormal, tHit)) {
+                // no hit: move to target and finish
+                curr = target;
+                break;
+            }
+
+            // move to impact point
+            curr = hitPos;
+
+            // compute remaining after impact
+            Vector3 travel = Vector3Subtract(target, hitPos);
+            float vn = Vector3DotProduct(travel, hitNormal);
+            Vector3 proj = Vector3Scale(hitNormal, vn);
+            Vector3 slide = Vector3Subtract(travel, proj);
+
+            // small epsilon to avoid sticking
+            curr = Vector3Add(curr, Vector3Scale(hitNormal, 0.001f));
+
+            // set remaining for next iteration
+            remaining = slide;
+
+            // If hit normal is mostly up, consider grounded and zero vertical velocity
+            if (hitNormal.y > 0.5f) {
+                body.isGrounded = true;
+                body.velocity.y = 0.0f;
+            }
+        }
+
+        body.position = Vector3Add(startPos, Vector3Subtract(startPos, startPos)); // keep structure
+        // final position is startPos + consumed motion: compute from curr
+        body.position = curr;
+        // update velocity to match actual movement
+        body.velocity = Vector3Scale(Vector3Subtract(body.position, startPos), 1.0f / delta);
+    } else {
+        // no world: simple move
+        body.position.x += remaining.x;
+        body.position.y += remaining.y;
+        body.position.z += remaining.z;
+    }
 
     if (body.position.y <= 0.0f) {
         body.position.y = 0.0f;
         body.velocity.y = 0.0f;
         body.isGrounded = true;
+        if (enableSourceBhop) {
+            // Preserve horizontal speed, do not cap to MAX_SPEED
+            // (No action needed, just don't reset/cap)
+        } else {
+            // Cap horizontal speed to MAX_SPEED when landing (default behavior)
+            float hSpeed = sqrtf(body.velocity.x * body.velocity.x + body.velocity.z * body.velocity.z);
+            if (hSpeed > MAX_SPEED) {
+                float scale = MAX_SPEED / hSpeed;
+                body.velocity.x *= scale;
+                body.velocity.z *= scale;
+            }
+        }
     }
 }
 

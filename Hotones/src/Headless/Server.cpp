@@ -1,76 +1,96 @@
-//
-// echo_server.cpp
-// ~~~~~~~~~~~~~~~
-//
-// Copyright (c) 2003-2025 Christopher M. Kohlhoff (chris at kohlhoff dot com)
-//
-// Distributed under the Boost Software License, Version 1.0. (See accompanying
-// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
-//
+// #include <asio/udp_server.h>
+// #include <threads/thread.h>
 
-#include <boost/asio/co_spawn.hpp>
-#include <boost/asio/detached.hpp>
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/signal_set.hpp>
-#include <boost/asio/write.hpp>
-#include <cstdio>
+// #include <iostream>
+// #include <memory>
 
-using boost::asio::ip::tcp;
-using boost::asio::awaitable;
-using boost::asio::co_spawn;
-using boost::asio::detached;
-using boost::asio::use_awaitable;
-namespace this_coro = boost::asio::this_coro;
 
-#if defined(BOOST_ASIO_ENABLE_HANDLER_TRACKING)
-# define use_awaitable \
-  boost::asio::use_awaitable_t(__FILE__, __LINE__, __PRETTY_FUNCTION__)
-#endif
+// class EchoServer : public CppServer::Asio::UDPServer
+// {
+// public:
+//     using CppServer::Asio::UDPServer::UDPServer;
 
-awaitable<void> echo(tcp::socket socket)
-{
-  try
-  {
-    char data[1024];
-    for (;;)
-    {
-      std::size_t n = co_await socket.async_read_some(boost::asio::buffer(data), use_awaitable);
-      co_await async_write(socket, boost::asio::buffer(data, n), use_awaitable);
-    }
-  }
-  catch (std::exception& e)
-  {
-    std::printf("echo Exception: %s\n", e.what());
-  }
-}
+// protected:
+//     void onStarted() override
+//     {
+//         // Start receive datagrams
+//         ReceiveAsync();
+//     }
 
-awaitable<void> listener()
-{
-  auto executor = co_await this_coro::executor;
-  tcp::acceptor acceptor(executor, {tcp::v4(), 55555});
-  for (;;)
-  {
-    tcp::socket socket = co_await acceptor.async_accept(use_awaitable);
-    co_spawn(executor, echo(std::move(socket)), detached);
-  }
-}
+//     void onReceived(const asio::ip::udp::endpoint& endpoint, const void* buffer, size_t size) override
+//     {
+//         std::string message((const char*)buffer, size);
+//         std::cout << "Incoming: " << message << std::endl;
 
-int main()
-{
-  try
-  {
-    boost::asio::io_context io_context(1);
+//         // Echo the message back to the sender
+//         SendAsync(endpoint, message);
+//     }
 
-    boost::asio::signal_set signals(io_context, SIGINT, SIGTERM);
-    signals.async_wait([&](auto, auto){ io_context.stop(); });
+//     void onSent(const asio::ip::udp::endpoint& endpoint, size_t sent) override
+//     {
+//         // Continue receive datagrams
+//         ReceiveAsync();
+//     }
 
-    co_spawn(io_context, listener(), detached);
+//     void onError(int error, const std::string& category, const std::string& message) override
+//     {
+//         std::cout << "Echo UDP server caught an error with code " << error << " and category '" << category << "': " << message << std::endl;
+//     }
+// };
 
-    io_context.run();
-  }
-  catch (std::exception& e)
-  {
-    std::printf("Exception: %s\n", e.what());
-  }
-}
+// int main(int argc, char** argv)
+// {
+//     // UDP server port
+//     int port = 3333;
+//     if (argc > 1)
+//         port = std::atoi(argv[1]);
+
+//     std::cout << "UDP server port: " << port << std::endl;
+
+//     // Create a new Asio service
+//     auto service = std::make_shared<CppServer::Asio::Service>();
+
+//     // Start the Asio service
+//     std::cout << "Asio service starting...";
+//     service->Start();
+//     std::cout << "Done!" << std::endl;
+
+//     // Create a new UDP echo server
+//     auto server = std::make_shared<EchoServer>(service, port);
+
+//     // Start the server
+//     std::cout << "Server starting...";
+//     server->Start();
+//     std::cout << "Done!" << std::endl;
+
+//     std::cout << "Press Enter to stop the server or '!' to restart the server..." << std::endl;
+
+//     // Perform text input
+//     std::string line;
+//     while (getline(std::cin, line))
+//     {
+//         if (line.empty())
+//             break;
+
+//         // Restart the server
+//         if (line == "!")
+//         {
+//             std::cout << "Server restarting...";
+//             server->Restart();
+//             std::cout << "Done!" << std::endl;
+//             continue;
+//         }
+//     }
+
+//     // Stop the server
+//     std::cout << "Server stopping...";
+//     server->Stop();
+//     std::cout << "Done!" << std::endl;
+
+//     // Stop the Asio service
+//     std::cout << "Asio service stopping...";
+//     service->Stop();
+//     std::cout << "Done!" << std::endl;
+
+//     return 0;
+// }

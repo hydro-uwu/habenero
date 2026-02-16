@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Scene.hpp"
-#include "../GFX/TransitionScene.hpp"
+#include <GFX/TransitionScene.hpp>
 #include <string>
 #include <memory>
 #include <unordered_map>

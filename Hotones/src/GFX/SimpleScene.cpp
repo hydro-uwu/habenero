@@ -1,4 +1,4 @@
-#include "SimpleScene.hpp"
+#include <GFX/SimpleScene.hpp>
 
 namespace Hotones {
 

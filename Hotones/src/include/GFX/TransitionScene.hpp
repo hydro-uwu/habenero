@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../include/Scene.hpp"
+#include <GFX/Scene.hpp>
 #include <raylib.h>
 #include <vector>
 #include <functional>

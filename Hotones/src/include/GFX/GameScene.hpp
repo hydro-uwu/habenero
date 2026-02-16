@@ -1,10 +1,9 @@
 #pragma once
 
-
-#include "../include/Scene.hpp"
-#include "../include/Player.hpp"
-#include "GFX/CollidableModel.hpp"
+#include <GFX/Scene.hpp>
+#include <GFX/Player.hpp>
 #include <raylib.h>
+#include <GFX/CollidableModel.hpp>
 
 namespace Hotones {
 
@@ -21,10 +20,9 @@ public:
 private:
     Hotones::Player player;
     Camera camera;
-    // Collidable model for demo
-        // Main world model
-        CollidableModel* worldModel = nullptr;
-        bool worldDebug = false;
+    // Main world model
+    CollidableModel* worldModel = nullptr;
+    bool worldDebug = false;
 
     void DrawLevel();
 };

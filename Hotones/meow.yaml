@@ -2,8 +2,8 @@ name: Hotones
 version: 0.1.0
 description: A HotOnes cpp project
 authors:
-  - charlie-san
-  - exxon47
+- charlie-san
+- exxon47
 type: cpp
 main: src/main.cpp
 build:
@@ -15,7 +15,6 @@ build:
   wildcard: true
   link: true
   objdir: build/obj
-  extraArgs: [" -Isrc/include -lraylib"]
   testMain: ''
   testExtraArgs: []
   futLanguage: ''
@@ -24,7 +23,12 @@ build:
   futIncludes: []
   futReadOnly: []
   futExtraArgs: []
+  extraArgs:
+  - ' -Isrc/include -lraylib'
+  - '-fsanitize=address -g'
+  jobs: 12
 dependencies: {}
 dependencyCategories: {}
 devDependencies: {}
-scripts: {run: "meow build ; ./build/Hotones.exe"}
+scripts:
+  run: meow build ; ./build/Hotones.exe

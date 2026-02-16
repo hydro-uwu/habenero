@@ -1,15 +1,19 @@
-#pragma once
-
-#include <raylib.h>
-#include <raymath.h>
-
-namespace Hotones {
-
-class Player {
-public:
-    // Movement constants
+    // Feature toggles
+    #pragma once
+    #ifndef PLAYER_HPP
+    #define PLAYER_HPP
+    
+    #include <raylib.h>
+    #include <raymath.h>
+    
+    namespace Hotones {
+        
+        class Player {
+            public:
+            // Movement constants
+            bool enableSourceBhop = true; // If true, allows Source-style bhop bug
     static constexpr float GRAVITY = 32.0f;
-    static constexpr float MAX_SPEED = 20.0f;
+    static constexpr float MAX_SPEED = 200.0f;
     static constexpr float CROUCH_SPEED = 5.0f;
     static constexpr float JUMP_FORCE = 12.0f;
     static constexpr float MAX_ACCEL = 150.0f;
@@ -32,7 +36,13 @@ public:
 
     void Update();
     void AttachCamera(Camera* camera);
+    // Attach the world model for collision checks
+    void AttachWorld(class CollidableModel* world);
     void Render();
+
+    // Enable or disable Source bhop bug
+    void SetSourceBhopEnabled(bool enabled) { enableSourceBhop = enabled; }
+    bool IsSourceBhopEnabled() const { return enableSourceBhop; }
 
     // Body state
     Body body;
@@ -47,9 +57,12 @@ public:
 
 private:
     Camera* m_attachedCamera;
+    // Pointer to world model for collision resolution
+    class CollidableModel* m_worldModel = nullptr;
 
     void UpdateBody(char side, char forward, bool jumpPressed, bool crouchHold);
     void UpdateCamera();
 };
 
 } // namespace Hotones
+#endif // PLAYER_HPP

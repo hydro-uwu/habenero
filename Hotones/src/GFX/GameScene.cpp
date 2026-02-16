@@ -1,11 +1,14 @@
-#include "GameScene.hpp"
+#include <GFX/GameScene.hpp>
 #include <raymath.h>
+#include <GFX/CollidableModel.hpp>
 
 namespace Hotones {
 
 GameScene::GameScene()
+    : worldModel(nullptr)
+    , worldDebug(false) // Added worldDebug flag
 {
-    camera = {0};
+    camera = { 0 };
 }
 
 void GameScene::Init()
@@ -19,18 +22,35 @@ void GameScene::Init()
         player.body.position.z,
     };
     player.AttachCamera(&camera);
+
+
+    // Load the main world model (replace path as needed)
+    worldModel = new CollidableModel("assets/world.glb", {0,0,0});
+    // Let player use the world for collisions
+    player.AttachWorld(worldModel);
 }
 
 void GameScene::Update()
 {
     player.Update();
+
+    // Toggle world debug visuals
+    if (IsKeyPressed(KEY_F1)) {
+        worldDebug = !worldDebug;
+        if (worldModel) worldModel->SetDebug(worldDebug);
+    }
+
+    // Example: check collision with player position
+    if (worldModel && worldModel->CheckCollision(player.body.position)) {
+        TraceLog(LOG_INFO, "Player colliding with world!");
+    }
 }
 
 void GameScene::Draw()
 {
     ClearBackground(RAYWHITE);
     BeginMode3D(camera);
-        DrawLevel();
+    DrawLevel();
     EndMode3D();
 
     // HUD
@@ -40,54 +60,28 @@ void GameScene::Draw()
     DrawText("- Move keys: W, A, S, D, Space, Left-Ctrl", 15, 30, 10, BLACK);
     DrawText("- Look around: arrow keys or mouse", 15, 45, 10, BLACK);
     DrawText(TextFormat("- Velocity Len: (%06.3f)", Vector2Length((Vector2){ player.body.velocity.x, player.body.velocity.z })), 15, 60, 10, BLACK);
-}
 
-void GameScene::Unload()
-{
-    // nothing for now
+    // world drawing moved to DrawLevel()
 }
 
 void GameScene::DrawLevel()
 {
-    const int floorExtent = 25;
-    const float tileSize = 5.0f;
-    const Color tileColor1 = (Color){ 150, 200, 200, 255 };
-
-    for (int y = -floorExtent; y < floorExtent; y++)
-    {
-        for (int x = -floorExtent; x < floorExtent; x++)
-        {
-            if ((y & 1) && (x & 1))
-            {
-                DrawPlane((Vector3){ x*tileSize, 0.0f, y*tileSize}, (Vector2){ tileSize, tileSize }, tileColor1);
-            }
-            else if (!(y & 1) && !(x & 1))
-            {
-                DrawPlane((Vector3){ x*tileSize, 0.0f, y*tileSize}, (Vector2){ tileSize, tileSize }, LIGHTGRAY);
-            }
-        }
+    // Draw the main world model and its bounding box
+    if (worldModel) {
+        worldModel->Draw();
+        DrawBoundingBox(worldModel->GetBoundingBox(), RED);
+        if (worldDebug) worldModel->DrawDebug();
     }
+}
 
-    const Vector3 towerSize = (Vector3){ 16.0f, 32.0f, 16.0f };
-    const Color towerColor = (Color){ 150, 200, 200, 255 };
+void GameScene::Unload()
+{
+    // No testModel cleanup needed
 
-    Vector3 towerPos = (Vector3){ 16.0f, 16.0f, 16.0f };
-    DrawCubeV(towerPos, towerSize, towerColor);
-    DrawCubeWiresV(towerPos, towerSize, DARKBLUE);
-
-    towerPos.x *= -1;
-    DrawCubeV(towerPos, towerSize, towerColor);
-    DrawCubeWiresV(towerPos, towerSize, DARKBLUE);
-
-    towerPos.z *= -1;
-    DrawCubeV(towerPos, towerSize, towerColor);
-    DrawCubeWiresV(towerPos, towerSize, DARKBLUE);
-
-    towerPos.x *= -1;
-    DrawCubeV(towerPos, towerSize, towerColor);
-    DrawCubeWiresV(towerPos, towerSize, DARKBLUE);
-
-    DrawSphere((Vector3){ 300.0f, 300.0f, 0.0f }, 100.0f, (Color){ 255, 0, 0, 255 });
+    if (worldModel) {
+        delete worldModel;
+        worldModel = nullptr;
+    }
 }
 
 } // namespace Hotones
