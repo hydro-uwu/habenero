@@ -8,6 +8,9 @@
 #include <SFX/AudioSystem.hpp>
 #include <Assets/AssetLoader.hpp>
 #include <filesystem>
+#if defined(_WIN32)
+#include <crtdbg.h>
+#endif
 
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
@@ -25,6 +28,15 @@ int main(void)
     const int screenHeight = 768;
 
     InitWindow(screenWidth, screenHeight, "Habanero Hotel - Hotones");
+    // Enable CRT debug heap checks on Windows to catch heap corruption early
+#if defined(_WIN32) && defined(_DEBUG)
+    int dbgFlags = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
+    dbgFlags |= _CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF;
+    _CrtSetDbgFlag(dbgFlags);
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
+    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
+    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG);
+#endif
     // Initialize audio subsystem so game systems can play sounds (footsteps etc.)
     Ho_tones::InitAudioSystem();
 
