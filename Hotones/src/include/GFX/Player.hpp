@@ -4,8 +4,12 @@
     #define PLAYER_HPP
     
     #include <raylib.h>
+
     #include <raymath.h>
+    #include <SoundBus.hpp>
     #include <memory>
+    // Forward-declare the global SoundBus accessor from the audio system
+    namespace Ho_tones { class SoundBus; SoundBus& GetSoundBus(); }
     
     namespace Hotones {
         
@@ -36,7 +40,7 @@
     ~Player() = default;
 
     void Update();
-    void AttachCamera(Camera* camera);
+    void AttachCamera(Camera3D* camera);
     // Attach the world model for collision checks
     void AttachWorld(std::shared_ptr<class CollidableModel> world);
     void Render();
@@ -45,6 +49,17 @@
     void SetSourceBhopEnabled(bool enabled) { enableSourceBhop = enabled; }
     bool IsSourceBhopEnabled() const { return enableSourceBhop; }
 
+    void RegisterSounds() {
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/sounds/footsteps/hardboot_generic1.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/sounds/footsteps/hardboot_generic2.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/sounds/footsteps/hardboot_generic3.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/sounds/footsteps/hardboot_generic4.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/sounds/footsteps/hardboot_generic5.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/sounds/footsteps/hardboot_generic6.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/sounds/footsteps/hardboot_generic7.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/sounds/footsteps/hardboot_generic8.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/sounds/footsteps/hardboot_generic9.wav");
+    }
     // Body state
     Body body;
     Vector2 lookRotation;
@@ -59,7 +74,7 @@
     float prevHeadSin = 0.0f;
 
 private:
-    Camera* m_attachedCamera;
+    Camera3D* m_attachedCamera;
     // Shared pointer to world model for collision resolution
     std::shared_ptr<class CollidableModel> m_worldModel = nullptr;
 

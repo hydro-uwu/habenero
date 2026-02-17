@@ -45,19 +45,11 @@ int main(void)
 
     // Try to find and load a footstep asset using the AssetLoader
     {       
-        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic1.wav");
-        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic2.wav");
-        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic3.wav");
-        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic4.wav");
-        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic5.wav");
-        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic6.wav");
-        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic7.wav");
-        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic8.wav");
-        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic9.wav");
     }
-
+    
     // Initialize player and camera
     Hotones::Player player;
+    player.RegisterSounds();
     Camera camera = { 0 };
     camera.fovy = 60.0f;
     camera.projection = CAMERA_PERSPECTIVE;

@@ -41,6 +41,7 @@ CollidableModel::CollidableModel(const std::string& path, Vector3 position)
                 }
             } else {
                 model = LoadModel(loadPath);
+            
             }
         } catch (const std::exception &e) {
             TraceLog(LOG_ERROR, "CollidableModel: exception while loading model: %s: %s", loadPath, e.what());

@@ -1,0 +1,1 @@
+g++ -std=c++20 $(find src -name "*.cpp" -print | tr '\n' ' ') -Isrc/include -DWINDOWS_UCRT64 -lraylib -llua -o build/Hotones

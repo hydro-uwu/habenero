@@ -17,7 +17,7 @@ Player::Player() {
     m_attachedCamera = nullptr;
 }
 
-void Player::AttachCamera(Camera* camera) {
+void Player::AttachCamera(Camera3D* camera) {
     m_attachedCamera = camera;
 }
 
