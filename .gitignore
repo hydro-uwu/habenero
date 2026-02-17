@@ -5,3 +5,16 @@ Hotones/build/libstdc++-6.dll
 Hotones/build/libwinpthread-1.dll
 Hotones/build/Hotones.exe
 Textures/
+maps/*.b0
+maps/*.b1
+maps/*.b2
+maps/*.b3
+maps/*.bsp
+maps/*.hsz
+maps/*.log
+maps/*.p0
+maps/*.p1
+maps/*.p2
+maps/*.p3
+maps/*.pln
+maps/*.wa_

@@ -2,6 +2,7 @@
 #include "AssetPath.hpp"
 #include <raylib.h>
 #include <raymath.h>
+#include <GFX/bsp.hpp>
 #if defined(_WIN32)
 #include <crtdbg.h>
 #endif
@@ -14,14 +15,40 @@ CollidableModel::CollidableModel(const std::string& path, Vector3 position)
     std::string resolved = ResolveAssetPath(path);
     const char* loadPath = (!resolved.empty() ? resolved.c_str() : path.c_str());
     TraceLog(LOG_INFO, "CollidableModel: loading model '%s'", loadPath);
-    // Check file exists before calling into raylib's LoadModel (can crash if file missing/corrupt)
+    // Check file exists before calling into raylib's loaders (can crash if file missing/corrupt)
     FILE *f = fopen(loadPath, "rb");
     if (!f) {
         TraceLog(LOG_ERROR, "CollidableModel: model file not found: %s", loadPath);
         model = {0};
     } else {
         fclose(f);
-        model = LoadModel(loadPath);
+        // If the file appears to be a BSP, attempt to load via the BSP importer
+        try {
+            std::filesystem::path p(loadPath);
+            std::string ext = p.extension().string();
+            for (auto &c : ext) c = (char)tolower(c);
+            if (ext == ".bsp") {
+                auto models = LoadModelsFromBSPFile(p);
+                if (!models.empty()) {
+                    // Use the first generated model and unload any extras
+                    model = std::move(models[0]);
+                    for (size_t i = 1; i < models.size(); ++i) {
+                        UnloadModel(models[i]);
+                    }
+                } else {
+                    TraceLog(LOG_ERROR, "CollidableModel: failed to import BSP: %s", loadPath);
+                    model = {0};
+                }
+            } else {
+                model = LoadModel(loadPath);
+            }
+        } catch (const std::exception &e) {
+            TraceLog(LOG_ERROR, "CollidableModel: exception while loading model: %s: %s", loadPath, e.what());
+            model = {0};
+        } catch (...) {
+            TraceLog(LOG_ERROR, "CollidableModel: unknown exception while loading model: %s", loadPath);
+            model = {0};
+        }
     }
     if (model.meshCount <= 0 || model.meshes == NULL) {
         TraceLog(LOG_WARNING, "CollidableModel: loaded model has no meshes or failed to load meshes (meshes=%p, meshCount=%d)", (const void*)model.meshes, model.meshCount);

@@ -60,8 +60,8 @@ void Player::Update() {
     // Footstep trigger: when head bob sine crosses from negative to positive
     float newHeadSin = sinf(headTimer * PI);
     if (body.isGrounded && ((forward != 0) || (sideway != 0))) {
-        if (prevHeadSin <= 0.0f && newHeadSin > 0.0f && walkLerp > 0.2f) {
-            Ho_tones::GetSoundBus().PlayLoaded("footstep", 1.0f);
+        if (prevHeadSin <= 0.0f && newHeadSin > 0.0f && walkLerp > 0.1f) {
+            Ho_tones::GetSoundBus().PlaySequentialAsync("footstep", 1.0f);
         }
     }
     prevHeadSin = newHeadSin;

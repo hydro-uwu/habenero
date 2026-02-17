@@ -29,7 +29,7 @@ void GameScene::Init()
 
 
     // Load the main world model (replace path as needed)
-    worldModel = std::make_shared<CollidableModel>("assets/world.glb", (Vector3){0,0,0});
+    worldModel = std::make_shared<CollidableModel>("assets/home.obj", (Vector3){0,0,0});
     // Let player use the world for collisions (shared ownership)
     player.AttachWorld(worldModel);
 }
@@ -46,7 +46,7 @@ void GameScene::Update()
 
     // Example: check collision with player position
     if (worldModel && worldModel->CheckCollision(player.body.position)) {
-        TraceLog(LOG_INFO, "Player colliding with world!");
+        // TraceLog(LOG_INFO, "Player colliding with world!");
     }
 }
 

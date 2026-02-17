@@ -14,14 +14,23 @@
 #include <system_error>
 #include <SoundBus.hpp>
 #include <raylib.h>
+#include <Assets/AssetLoader.hpp>
+#include <random>
 
 namespace Ho_tones {
 
     // Keep track of raylib-created Sounds and their temp filenames so we can stop/unload them from StopAll().
     static std::vector<Sound> raylibSounds;
     static std::vector<std::string> raylibTempFiles;
-    // Loaded named sounds (from disk assets)
-    static std::unordered_map<std::string, Sound> loadedSounds;
+    // Loaded named sounds (from disk assets).
+    // Store the original Sound plus its Wave so we can create fresh Sound
+    // instances from the in-memory Wave for overlapping playback without
+    // reading from disk repeatedly.
+    struct LoadedEntry { Sound sound; Wave wave; std::string path; };
+    static std::unordered_map<std::string, std::vector<LoadedEntry>> loadedSounds;
+    // Round-robin index for sequential playback per-name
+    static std::unordered_map<std::string, size_t> sequentialIndex;
+    static std::mt19937 rng((unsigned)std::chrono::high_resolution_clock::now().time_since_epoch().count());
 
     struct SoundBus::Voice {
         std::vector<int16_t> samples; // interleaved
@@ -69,8 +78,21 @@ namespace Ho_tones {
     bool SoundBus::LoadSoundFile(const std::string& name, const std::string& filePath) {
         if (!IsAudioDeviceReady()) return false;
         try {
-            Sound s = LoadSound(filePath.c_str());
-            loadedSounds[name] = s;
+            // Resolve the path via the asset system so callers can pass
+            // relative asset paths (e.g. "assets/foo.wav"). Fall back to the
+            // provided path if resolution fails.
+            std::string resolved = filePath;
+            std::string found;
+            if (Ho_tones::Assets::FindAsset(filePath, found)) {
+                resolved = found;
+            }
+
+            // Load the wave into memory once and create a Sound from it. Keep
+            // both so we can spawn fresh Sound instances from the Wave later.
+            Wave w = LoadWave(resolved.c_str());
+            Sound s = LoadSoundFromWave(w);
+            LoadedEntry e; e.sound = s; e.wave = w; e.path = resolved;
+            loadedSounds[name].push_back(std::move(e));
             return true;
         } catch (...) {
             return false;
@@ -78,13 +100,56 @@ namespace Ho_tones {
     }
 
     bool SoundBus::PlayLoaded(const std::string& name, float gain) {
+        // Play first variant (if any)
+        return PlayRandom(name, gain);
+    }
+
+    bool SoundBus::PlayRandom(const std::string& name, float gain) {
         if (!IsAudioDeviceReady()) return false;
         auto it = loadedSounds.find(name);
-        if (it == loadedSounds.end()) return false;
-        SetSoundVolume(it->second, gain);
-        ::PlaySound(it->second);
-        // Do not push the named loaded Sound into `raylibSounds` —
-        // `loadedSounds` owns it and will be unloaded in StopAll().
+        if (it == loadedSounds.end() || it->second.empty()) return false;
+        auto &vec = it->second;
+        std::uniform_int_distribution<size_t> dist(0, vec.size() - 1);
+        size_t idx = dist(rng);
+        Sound s = vec[idx].sound;
+        SetSoundVolume(s, gain);
+        ::PlaySound(s);
+        return true;
+    }
+
+    bool SoundBus::PlaySequential(const std::string& name, float gain) {
+        if (!IsAudioDeviceReady()) return false;
+        auto it = loadedSounds.find(name);
+        if (it == loadedSounds.end() || it->second.empty()) return false;
+        auto &vec = it->second;
+        size_t &idxRef = sequentialIndex[name];
+        if (idxRef >= vec.size()) idxRef = 0;
+        Sound s = vec[idxRef].sound;
+        // advance for next call
+        idxRef = (idxRef + 1) % vec.size();
+        SetSoundVolume(s, gain);
+        ::PlaySound(s);
+        return true;
+    }
+
+    bool SoundBus::PlaySequentialAsync(const std::string& name, float gain) {
+        if (!IsAudioDeviceReady()) return false;
+        auto it = loadedSounds.find(name);
+        if (it == loadedSounds.end() || it->second.empty()) return false;
+        auto &vec = it->second;
+        size_t &idxRef = sequentialIndex[name];
+        if (idxRef >= vec.size()) idxRef = 0;
+        // Create a fresh Sound instance from the stored Wave so we can play
+        // overlapping copies without touching disk.
+        const LoadedEntry &entry = vec[idxRef];
+        idxRef = (idxRef + 1) % vec.size();
+
+        // Create a fresh Sound from the stored Wave so the same asset can be
+        // played multiple times overlapping without requiring PlaySoundMulti.
+        Sound s = LoadSoundFromWave(entry.wave);
+        SetSoundVolume(s, gain);
+        ::PlaySound(s);
+        raylibSounds.push_back(s);
         return true;
     }
 
@@ -223,12 +288,25 @@ namespace Ho_tones {
                 UnloadSound(s);
             }
         }
+        // Stop any multi-playback instances (raylib may not provide StopSoundMulti in all versions)
+        if (audioReady) {
+            // Stop any instances that were started with PlaySoundMulti by stopping
+            // each known loaded Sound; loadedSounds are iterated later for unloading.
+            for (auto &kv : loadedSounds) {
+                for (auto &e : kv.second) {
+                    StopSound(e.sound);
+                }
+            }
+        }
         raylibSounds.clear();
 
         // Unload any named sounds we loaded from disk
         if (audioReady) {
             for (auto &kv : loadedSounds) {
-                UnloadSound(kv.second);
+                for (auto &e : kv.second) {
+                    UnloadSound(e.sound);
+                    UnloadWave(e.wave);
+                }
             }
         }
         loadedSounds.clear();

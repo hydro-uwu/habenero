@@ -6,7 +6,8 @@
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/src/Hotones/src/include",
                 "${workspaceFolder}/Hotones/src/include",
-                "C:\\msys64\\mingw64\\include"
+                "C:\\msys64\\mingw64\\include",
+                "C:/msys64/usr/include/sys"
             ],
             "defines": [
                 "_DEBUG",

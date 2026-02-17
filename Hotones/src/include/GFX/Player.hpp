@@ -12,7 +12,7 @@
         class Player {
             public:
             // Movement constants
-            bool enableSourceBhop = true; // If true, allows Source-style bhop bug
+            bool enableSourceBhop = false; // If true, allows Source-style bhop bug
     static constexpr float GRAVITY = 32.0f;
     static constexpr float MAX_SPEED = 200.0f;
     static constexpr float CROUCH_SPEED = 5.0f;

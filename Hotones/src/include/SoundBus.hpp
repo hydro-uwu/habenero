@@ -22,13 +22,25 @@ public:
     // Play a sound by filename (wav/ogg). `soundName` is a filesystem path.
     bool PlaySound(const std::string& soundPath, float gain = 1.0f);
 
-    // Load a sound file and give it a logical name for later playback.
+    // Load a sound file and associate it under a logical group name. Multiple
+    // files can be loaded under the same `name` to form variants.
     // Returns true on success.
     bool LoadSoundFile(const std::string& name, const std::string& filePath);
 
-    // Play a previously loaded sound by name.
+    // Play a previously loaded sound by name. Plays the first loaded variant.
     bool PlayLoaded(const std::string& name, float gain = 1.0f);
 
+    // Play a random variant from the loaded group for `name`.
+    bool PlayRandom(const std::string& name, float gain = 1.0f);
+
+    // Play the next variant in the loaded group for `name` in a round-robin
+    // fashion. This ensures each file in the category is played in turn.
+    bool PlaySequential(const std::string& name, float gain = 1.0f);
+
+    // Async/overlapping version of PlaySequential: will load a fresh copy of
+    // the selected variant and play it immediately so multiple footsteps can
+    // overlap. Returns true if playback started.
+    bool PlaySequentialAsync(const std::string& name, float gain = 1.0f);
     // Play raw PCM interleaved 16-bit signed samples.
     // `data` is interleaved PCM (frames * channels).
     // `sampleRate` is samples per second of the data.

@@ -24,8 +24,7 @@ build:
   futReadOnly: []
   futExtraArgs: []
   extraArgs:
-  - ' -Isrc/include -lraylib'
-  # - '-fsanitize=address -g'
+  - ' -Isrc/include -lraylib -std=c++20'
   jobs: 12
 dependencies: {}
 dependencyCategories: {}

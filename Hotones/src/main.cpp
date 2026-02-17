@@ -41,11 +41,16 @@ int main(void)
     Ho_tones::InitAudioSystem();
 
     // Try to find and load a footstep asset using the AssetLoader
-    {
-        std::string found;
-        if (Ho_tones::Assets::FindAsset("Assets/footstep.wav", found) || Ho_tones::Assets::FindAsset("Assets/footstep.ogg", found)) {
-            Ho_tones::GetSoundBus().LoadSoundFile("footstep", found);
-        }
+    {       
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic1.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic2.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic3.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic4.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic5.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic6.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic7.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic8.wav");
+        Ho_tones::GetSoundBus().LoadSoundFile("footstep", "assets/hardboot_generic9.wav");
     }
 
     // Initialize player and camera
@@ -83,7 +88,7 @@ int main(void)
         // If loading finished, switch to game
         if (sceneMgr.GetCurrentName() == "loading" && sceneMgr.GetCurrent() && sceneMgr.GetCurrent()->IsFinished()) {
             // use an animated transition when switching to the game scene
-            sceneMgr.SwitchWithTransition("game", 0.3f);
+            sceneMgr.SwitchWithTransition("game", 1.0f);
         }
         //----------------------------------------------------------------------------------
 
