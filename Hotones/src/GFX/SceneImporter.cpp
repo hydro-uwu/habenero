@@ -400,7 +400,7 @@ static SceneLight ExtractLight(const aiLight* alight, const aiScene* scene) {
 // ─── Node tree walk ───────────────────────────────────────────────────────────
 
 struct BuildContext {
-    const aiScene*        aiScene;
+    const aiScene*        ai_scene;
     ImportedScene*        out;
     const std::string&    basePath;
     const SceneImportOptions& opts;
@@ -429,15 +429,15 @@ static int WalkNode(const aiNode* node, int parentIdx,
         auto it = ctx.meshIndexMap.find(aimIdx);
         if (it == ctx.meshIndexMap.end()) {
             // First time we see this Assimp mesh — convert it
-            const aiMesh* aim = ctx.aiScene->mMeshes[aimIdx];
+            const aiMesh* aim = ctx.ai_scene->mMeshes[aimIdx];
 
             SceneMesh sm;
             sm.name      = aim->mName.C_Str();
             sm.mesh      = AiMeshToRaylibMesh(aim);
             sm.transform = rlTm;
-            if (ctx.aiScene->mNumMaterials > aim->mMaterialIndex)
+            if (ctx.ai_scene->mNumMaterials > aim->mMaterialIndex)
                 sm.mat = AiMaterialToRaylibMaterial(
-                    ctx.aiScene->mMaterials[aim->mMaterialIndex], ctx.basePath);
+                    ctx.ai_scene->mMaterials[aim->mMaterialIndex], ctx.basePath);
             else
                 sm.mat = LoadMaterialDefault();
 
