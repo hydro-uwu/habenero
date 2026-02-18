@@ -9,10 +9,14 @@
 #include <imgui/rlImGui.h>
 #include <SFX/AudioSystem.hpp>
 #include <Assets/AssetLoader.hpp>
+#include <server/NetworkManager.hpp>
+#include <server/Server.hpp>
 #include <filesystem>
+#include <string>
 #if defined(_WIN32)
 #include <crtdbg.h>
 #endif
+#include <server/Server.hpp>
 
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
@@ -24,8 +28,35 @@ static void DrawLevel(void);
 //------------------------------------------------------------------------------------
 
 
-int main(void)
+int main(int argc, char** argv)
 {
+    // ── Command-line argument parsing ───────────────────────────────────────
+    bool        isServer    = false;
+    uint16_t    serverPort  = Hotones::Net::DEFAULT_PORT;
+    std::string connectHost;
+    uint16_t    connectPort = Hotones::Net::DEFAULT_PORT;
+    std::string playerName  = "Player";
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--server") {
+            isServer = true;
+        } else if (arg == "--port" && i + 1 < argc) {
+            serverPort = static_cast<uint16_t>(std::stoi(argv[++i]));
+        } else if (arg == "--connect" && i + 1 < argc) {
+            connectHost = argv[++i];
+        } else if (arg == "--cport" && i + 1 < argc) {
+            connectPort = static_cast<uint16_t>(std::stoi(argv[++i]));
+        } else if (arg == "--name" && i + 1 < argc) {
+            playerName = argv[++i];
+        }
+    }
+    SetTraceLogLevel(LOG_WARNING); // Reduce raylib log spam (can be set to LOG_INFO for more details)
+    // ── Headless server mode (no window needed) ─────────────────────────────
+    if (isServer) {
+        Hotones::RunHeadlessServer(serverPort);
+        return 0;
+    }
     // Initialization
     //--------------------------------------------------------------------------------------
     const int screenWidth = 1280;
@@ -69,6 +100,15 @@ int main(void)
     sceneMgr.Add("game", [](){ return std::make_unique<Hotones::GameScene>(); });
     sceneMgr.SwitchTo("loading");
 
+    // ── Network manager ─────────────────────────────────────────────────────
+    Hotones::Net::NetworkManager netMgr;
+    if (!connectHost.empty()) {
+        netMgr.Connect(connectHost, connectPort, playerName);
+    }
+    // Rate-limit player-update sends to ~20 Hz
+    float netSendTimer = 0.f;
+    static constexpr float NET_SEND_INTERVAL = 1.f / 20.f;
+
     DisableCursor();        // Limit cursor to relative movement inside the window
 
     SetTargetFPS(60);       // Set our game to run at 60 frames-per-second
@@ -85,6 +125,24 @@ int main(void)
         if (IsKeyPressed(KEY_F1)) showDebugUI = !showDebugUI;
         player.Update();
         sceneMgr.Update();
+
+        // ── Network tick ────────────────────────────────────────────────────
+        netMgr.Update();
+        netSendTimer += GetFrameTime();
+        if (netMgr.IsConnected() && netSendTimer >= NET_SEND_INTERVAL) {
+            netSendTimer = 0.f;
+            netMgr.SendPlayerUpdate(
+                player.body.position.x, player.body.position.y, player.body.position.z,
+                player.lookRotation.x,  player.lookRotation.y
+            );
+        }
+        // Give the current GameScene a pointer to the NetworkManager so it
+        // can render remote players inside its own BeginMode3D pass.
+        {
+            Hotones::GameScene* gs =
+                dynamic_cast<Hotones::GameScene*>(sceneMgr.GetCurrent());
+            if (gs) gs->SetNetworkManager(&netMgr);
+        }
 
         // If loading finished, switch to game
         if (sceneMgr.GetCurrentName() == "loading" && sceneMgr.GetCurrent() && sceneMgr.GetCurrent()->IsFinished()) {
@@ -105,6 +163,19 @@ int main(void)
                 rlImGuiBegin();
                 ImGui::Begin("Debug (F1 to toggle)");
                 ImGui::Text("Scene: %s", sceneMgr.GetCurrentName().c_str());
+                // Network status
+                if (netMgr.GetMode() == Hotones::Net::NetworkManager::Mode::Client) {
+                    if (netMgr.IsConnected()) {
+                        ImGui::Text("Net: connected  (ID %d,  remote players: %d)",
+                                    netMgr.GetLocalId(),
+                                    static_cast<int>(netMgr.GetRemotePlayers().size()));
+                    } else {
+                        ImGui::TextColored({1,1,0,1}, "Net: connecting to %s...", connectHost.c_str());
+                    }
+                } else {
+                    ImGui::TextDisabled("Net: offline (use --connect <ip>)");
+                }
+                ImGui::Separator();
                 Hotones::Scene *cur = sceneMgr.GetCurrent();
                 if (cur) {
                     Hotones::GameScene *gs = dynamic_cast<Hotones::GameScene*>(cur);

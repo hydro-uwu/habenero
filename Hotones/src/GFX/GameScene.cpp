@@ -1,6 +1,7 @@
 #include <GFX/GameScene.hpp>
 #include <raymath.h>
 #include <GFX/CollidableModel.hpp>
+#include <server/NetworkManager.hpp>
 
 namespace Hotones {
 
@@ -58,6 +59,21 @@ void GameScene::Draw()
     ClearBackground(RAYWHITE);
     BeginMode3D(camera);
     DrawLevel();
+
+    // Draw other connected players as coloured ghost shapes
+    if (m_netMgr) {
+        for (auto& [id, rp] : m_netMgr->GetRemotePlayers()) {
+            if (!rp.active) continue;
+            // Body (tall box)
+            DrawCube({ rp.posX, rp.posY + 1.0f, rp.posZ }, 0.6f, 2.0f, 0.6f,
+                     { 255, 80, 80, 200 });
+            // Head (smaller box)
+            DrawCube({ rp.posX, rp.posY + 2.3f, rp.posZ }, 0.5f, 0.5f, 0.5f,
+                     { 255, 140, 60, 220 });
+            DrawCubeWires({ rp.posX, rp.posY + 1.0f, rp.posZ }, 0.6f, 2.0f, 0.6f, DARKGRAY);
+        }
+    }
+
     EndMode3D();
 
     // HUD

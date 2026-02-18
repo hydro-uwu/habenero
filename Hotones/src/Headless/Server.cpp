@@ -1,96 +1,52 @@
-// #include <asio/udp_server.h>
-// #include <threads/thread.h>
+#include <server/Server.hpp>
+#include <server/NetworkManager.hpp>
 
-// #include <iostream>
-// #include <memory>
+#include <atomic>
+#include <chrono>
+#include <csignal>
+#include <iostream>
+#include <thread>
 
+namespace {
+    std::atomic<bool> g_serverRunning{ true };
+}
 
-// class EchoServer : public CppServer::Asio::UDPServer
-// {
-// public:
-//     using CppServer::Asio::UDPServer::UDPServer;
+static void SignalHandler(int /*sig*/) {
+    g_serverRunning = false;
+}
 
-// protected:
-//     void onStarted() override
-//     {
-//         // Start receive datagrams
-//         ReceiveAsync();
-//     }
+namespace Hotones {
 
-//     void onReceived(const asio::ip::udp::endpoint& endpoint, const void* buffer, size_t size) override
-//     {
-//         std::string message((const char*)buffer, size);
-//         std::cout << "Incoming: " << message << std::endl;
+void RunHeadlessServer(uint16_t port) {
+    std::signal(SIGINT,  SignalHandler);
+    std::signal(SIGTERM, SignalHandler);
 
-//         // Echo the message back to the sender
-//         SendAsync(endpoint, message);
-//     }
+    Net::NetworkManager server;
 
-//     void onSent(const asio::ip::udp::endpoint& endpoint, size_t sent) override
-//     {
-//         // Continue receive datagrams
-//         ReceiveAsync();
-//     }
+    server.OnPlayerJoined = [](uint8_t id, const char* name) {
+        std::cout << "[Server] ++ Player " << static_cast<int>(id)
+                  << " \"" << name << "\" joined\n";
+    };
+    server.OnPlayerLeft = [](uint8_t id) {
+        std::cout << "[Server] -- Player " << static_cast<int>(id) << " left\n";
+    };
 
-//     void onError(int error, const std::string& category, const std::string& message) override
-//     {
-//         std::cout << "Echo UDP server caught an error with code " << error << " and category '" << category << "': " << message << std::endl;
-//     }
-// };
+    if (!server.StartServer(port)) {
+        std::cerr << "[Server] Failed to start on port " << port << "\n";
+        return;
+    }
 
-// int main(int argc, char** argv)
-// {
-//     // UDP server port
-//     int port = 3333;
-//     if (argc > 1)
-//         port = std::atoi(argv[1]);
+    std::cout << "[Server] Dedicated server running on UDP port " << port << "\n";
+    std::cout << "[Server] Press Ctrl+C to shut down.\n";
 
-//     std::cout << "UDP server port: " << port << std::endl;
+    while (g_serverRunning.load()) {
+        server.Update();
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
 
-//     // Create a new Asio service
-//     auto service = std::make_shared<CppServer::Asio::Service>();
+    std::cout << "\n[Server] Shutting down...\n";
+    server.StopServer();
+    std::cout << "[Server] Goodbye!\n";
+}
 
-//     // Start the Asio service
-//     std::cout << "Asio service starting...";
-//     service->Start();
-//     std::cout << "Done!" << std::endl;
-
-//     // Create a new UDP echo server
-//     auto server = std::make_shared<EchoServer>(service, port);
-
-//     // Start the server
-//     std::cout << "Server starting...";
-//     server->Start();
-//     std::cout << "Done!" << std::endl;
-
-//     std::cout << "Press Enter to stop the server or '!' to restart the server..." << std::endl;
-
-//     // Perform text input
-//     std::string line;
-//     while (getline(std::cin, line))
-//     {
-//         if (line.empty())
-//             break;
-
-//         // Restart the server
-//         if (line == "!")
-//         {
-//             std::cout << "Server restarting...";
-//             server->Restart();
-//             std::cout << "Done!" << std::endl;
-//             continue;
-//         }
-//     }
-
-//     // Stop the server
-//     std::cout << "Server stopping...";
-//     server->Stop();
-//     std::cout << "Done!" << std::endl;
-
-//     // Stop the Asio service
-//     std::cout << "Asio service stopping...";
-//     service->Stop();
-//     std::cout << "Done!" << std::endl;
-
-//     return 0;
-// }
+} // namespace Hotones

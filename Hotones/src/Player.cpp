@@ -35,7 +35,7 @@ void Player::Update() {
     char sideway = (char)(IsKeyDown(KEY_D) - IsKeyDown(KEY_A));
     char forward = (char)(IsKeyDown(KEY_W) - IsKeyDown(KEY_S));
     bool crouching = IsKeyDown(KEY_LEFT_CONTROL);
-    bool jumpPressed = IsKeyPressed(KEY_SPACE);
+    bool jumpPressed = IsKeyDown(KEY_SPACE);
 
     TraceLog(LOG_INFO, "Player::UpdateBody input side=%d forward=%d jumpPressed=%d grounded=%d pos=(%f,%f,%f) vel=(%f,%f,%f)",
              sideway, forward, jumpPressed ? 1 : 0, body.isGrounded ? 1 : 0,
