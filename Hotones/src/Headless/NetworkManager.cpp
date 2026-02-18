@@ -20,6 +20,7 @@
   #include <sys/socket.h>
   #include <netinet/in.h>
   #include <arpa/inet.h>
+  #include <netdb.h>       // getaddrinfo, freeaddrinfo, gai_strerror
   #include <unistd.h>
   using SocketHandle = int;
   static constexpr SocketHandle INVALID_SOCK_VAL = -1;
@@ -146,8 +147,13 @@ struct NetworkManager::Impl {
     }
 
     void SendRaw(const sockaddr_in& addr, const void* data, int len) {
+#ifdef _WIN32
         sendto(socket, reinterpret_cast<const char*>(data), len, 0,
                reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
+#else
+        sendto(socket, data, static_cast<size_t>(len), 0,
+               reinterpret_cast<const sockaddr*>(&addr), sizeof(addr));
+#endif
     }
 
     // ── Background receive thread ─────────────────────────────────────────────
@@ -176,11 +182,16 @@ struct NetworkManager::Impl {
 
             sockaddr_in from{};
             SockLen fromLen = sizeof(from);
+#ifdef _WIN32
             int n = recvfrom(socket,
                              reinterpret_cast<char*>(buf),
                              static_cast<int>(sizeof(buf)),
                              0,
                              reinterpret_cast<sockaddr*>(&from), &fromLen);
+#else
+            ssize_t n = recvfrom(socket, buf, sizeof(buf), 0,
+                                 reinterpret_cast<sockaddr*>(&from), &fromLen);
+#endif
             if (n <= 0) continue; // timeout / EAGAIN — loop and check running
             if (n < static_cast<int>(sizeof(PacketHeader))) continue;
 
