@@ -12,7 +12,14 @@ void ShutdownPhysics();
 int RegisterStaticMeshFromModel(const Model& model, const Vector3& position);
 void UnregisterStaticMesh(int handle);
 
-// Optional: perform a sphere sweep against a registered static mesh. Returns true if hit.
-bool SweepSphereAgainstStatic(int handle, const Vector3& start, const Vector3& end, float radius, Vector3& hitPos, Vector3& hitNormal, float& t);
+// Continuous sphere sweep against a registered static mesh.
+// start/end are sphere center positions. Returns true if hit; t ∈ [0,1].
+bool SweepSphereAgainstStatic(int handle, const Vector3& start, const Vector3& end,
+                               float radius,
+                               Vector3& hitPos, Vector3& hitNormal, float& t);
+
+// Discrete sphere penetration resolve: pushes `center` out of all overlapping
+// triangles in one pass. Returns true if any triangle was overlapping.
+bool ResolveSphereAgainstStatic(int handle, Vector3& center, float radius);
 
 }} // namespace Hotones::Physics

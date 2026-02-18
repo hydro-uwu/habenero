@@ -5,6 +5,7 @@
 #include <GFX/LoadingScene.hpp>
 #include <GFX/SimpleScene.hpp>
 #include <GFX/GameScene.hpp>
+#include <GFX/MainMenuScene.hpp>
 #include <imgui/imgui.h>
 #include <imgui/rlImGui.h>
 #include <SFX/AudioSystem.hpp>
@@ -16,7 +17,6 @@
 #if defined(_WIN32)
 #include <crtdbg.h>
 #endif
-#include <server/Server.hpp>
 
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
@@ -76,10 +76,7 @@ int main(int argc, char** argv)
     // Initialize audio subsystem so game systems can play sounds (footsteps etc.)
     Ho_tones::InitAudioSystem();
 
-    // Try to find and load a footstep asset using the AssetLoader
-    {       
-    }
-    
+ 
     // Initialize player and camera
     Hotones::Player player;
     player.RegisterSounds();
@@ -96,9 +93,10 @@ int main(int argc, char** argv)
     player.AttachCamera(&camera);
     // Scene manager + scenes
     Hotones::SceneManager sceneMgr;
+    sceneMgr.Add("menu",    [](){ return std::make_unique<Hotones::MainMenuScene>(); });
     sceneMgr.Add("loading", [](){ return std::make_unique<Hotones::LoadingScene>(); });
-    sceneMgr.Add("game", [](){ return std::make_unique<Hotones::GameScene>(); });
-    sceneMgr.SwitchTo("loading");
+    sceneMgr.Add("game",    [](){ return std::make_unique<Hotones::GameScene>(); });
+    sceneMgr.SwitchTo("menu"); // start at the main menu
 
     // ── Network manager ─────────────────────────────────────────────────────
     Hotones::Net::NetworkManager netMgr;
@@ -109,7 +107,7 @@ int main(int argc, char** argv)
     float netSendTimer = 0.f;
     static constexpr float NET_SEND_INTERVAL = 1.f / 20.f;
 
-    DisableCursor();        // Limit cursor to relative movement inside the window
+    // Cursor starts enabled (menu). GameScene::Init() calls DisableCursor().
 
     SetTargetFPS(60);       // Set our game to run at 60 frames-per-second
     // Initialize rlImGui (optional system-installed integration)
@@ -123,31 +121,56 @@ int main(int argc, char** argv)
         // Update
         //----------------------------------------------------------------------------------
         if (IsKeyPressed(KEY_F1)) showDebugUI = !showDebugUI;
-        player.Update();
+
+        // Only tick the standalone player while actually playing
+        if (sceneMgr.GetCurrentName() == "game") player.Update();
         sceneMgr.Update();
+
+        // ── Scene transitions ────────────────────────────────────────────────
+        // Menu finished → start networking then fade to loading screen
+        if (sceneMgr.GetCurrentName() == "menu" && sceneMgr.GetCurrent() && sceneMgr.GetCurrent()->IsFinished()) {
+            auto* menu = dynamic_cast<Hotones::MainMenuScene*>(sceneMgr.GetCurrent());
+            if (menu) {
+                if (menu->GetAction() == Hotones::MainMenuScene::Action::Quit) {
+                    break; // exit game loop cleanly
+                }
+                playerName = menu->GetPlayerName();
+                if (menu->GetAction() == Hotones::MainMenuScene::Action::Host) {
+                    serverPort = menu->GetConnectPort();
+                    netMgr.StartServer(serverPort);
+                } else if (menu->GetAction() == Hotones::MainMenuScene::Action::Join) {
+                    connectHost = menu->GetConnectHost();
+                    connectPort = menu->GetConnectPort();
+                    netMgr.Connect(connectHost, connectPort, playerName);
+                }
+                sceneMgr.SwitchWithTransition("loading", 1.0f);
+            }
+        }
+
+        // Loading finished → enter game
+        if (sceneMgr.GetCurrentName() == "loading" && sceneMgr.GetCurrent() && sceneMgr.GetCurrent()->IsFinished()) {
+            sceneMgr.SwitchWithTransition("game", 1.0f);
+        }
 
         // ── Network tick ────────────────────────────────────────────────────
         netMgr.Update();
         netSendTimer += GetFrameTime();
         if (netMgr.IsConnected() && netSendTimer >= NET_SEND_INTERVAL) {
             netSendTimer = 0.f;
-            netMgr.SendPlayerUpdate(
-                player.body.position.x, player.body.position.y, player.body.position.z,
-                player.lookRotation.x,  player.lookRotation.y
-            );
+            // Send the GameScene's own player state (not the leftover main.cpp player)
+            Hotones::GameScene* gsNet = dynamic_cast<Hotones::GameScene*>(sceneMgr.GetCurrent());
+            if (gsNet) {
+                Hotones::Player* p = gsNet->GetPlayer();
+                netMgr.SendPlayerUpdate(
+                    p->body.position.x, p->body.position.y, p->body.position.z,
+                    p->lookRotation.x,  p->lookRotation.y
+                );
+            }
         }
-        // Give the current GameScene a pointer to the NetworkManager so it
-        // can render remote players inside its own BeginMode3D pass.
+        // Pass NetworkManager to GameScene every frame so it can render remote players
         {
-            Hotones::GameScene* gs =
-                dynamic_cast<Hotones::GameScene*>(sceneMgr.GetCurrent());
+            Hotones::GameScene* gs = dynamic_cast<Hotones::GameScene*>(sceneMgr.GetCurrent());
             if (gs) gs->SetNetworkManager(&netMgr);
-        }
-
-        // If loading finished, switch to game
-        if (sceneMgr.GetCurrentName() == "loading" && sceneMgr.GetCurrent() && sceneMgr.GetCurrent()->IsFinished()) {
-            // use an animated transition when switching to the game scene
-            sceneMgr.SwitchWithTransition("game", 1.0f);
         }
         //----------------------------------------------------------------------------------
 

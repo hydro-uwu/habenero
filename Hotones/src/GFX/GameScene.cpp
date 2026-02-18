@@ -18,6 +18,8 @@ GameScene::~GameScene()
 
 void GameScene::Init()
 {
+    DisableCursor(); // lock cursor for FPS gameplay; menu called EnableCursor()
+
     // Ensure player starts at origin when the game scene loads
     player.body.position = (Vector3){0.0f, 0.0f, 0.0f};
 

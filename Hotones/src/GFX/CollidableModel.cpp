@@ -112,189 +112,35 @@ bool CollidableModel::CheckCollision(Vector3 point) const {
            (point.z >= bbox.min.z && point.z <= bbox.max.z);
 }
 
-// Clamp point to box
-static Vector3 ClampPointToBox(const Vector3 &p, const BoundingBox &b) {
-    Vector3 out;
-    out.x = fmaxf(b.min.x, fminf(p.x, b.max.x));
-    out.y = fmaxf(b.min.y, fminf(p.y, b.max.y));
-    out.z = fmaxf(b.min.z, fminf(p.z, b.max.z));
-    return out;
-}
-
 bool CollidableModel::ResolveSphereCollision(Vector3 &center, float radius) {
-    bool collided = false;
-    if (model.meshCount <= 0 || model.meshes == NULL) return false;
-
-    for (int i = 0; i < model.meshCount; i++) {
-        BoundingBox mb = GetMeshBoundingBox(model.meshes[i]);
-        // offset by model position
-        mb.min = Vector3Add(mb.min, position);
-        mb.max = Vector3Add(mb.max, position);
-
-        // find closest point on box to sphere center
-        Vector3 closest = ClampPointToBox(center, mb);
-        Vector3 diff = Vector3Subtract(center, closest);
-        float dist2 = Vector3DotProduct(diff, diff);
-        float r2 = radius * radius;
-        if (dist2 < r2) {
-            float dist = sqrtf(dist2);
-            Vector3 push;
-            if (dist > 0.0001f) {
-                push = Vector3Scale(diff, (radius - dist) / dist);
-            } else {
-                // center is inside the box. Compute shortest axis to push out along
-                // using distances to each face, like SweepSphere's normal selection.
-                float dxMin = fabsf(center.x - mb.min.x);
-                float dxMax = fabsf(center.x - mb.max.x);
-                float dyMin = fabsf(center.y - mb.min.y);
-                float dyMax = fabsf(center.y - mb.max.y);
-                float dzMin = fabsf(center.z - mb.min.z);
-                float dzMax = fabsf(center.z - mb.max.z);
-                float minDist = dxMin; push = (Vector3){ -1,0,0 };
-                if (dxMax < minDist) { minDist = dxMax; push = (Vector3){ 1,0,0 }; }
-                if (dyMin < minDist) { minDist = dyMin; push = (Vector3){ 0,-1,0 }; }
-                if (dyMax < minDist) { minDist = dyMax; push = (Vector3){ 0,1,0 }; }
-                if (dzMin < minDist) { minDist = dzMin; push = (Vector3){ 0,0,-1 }; }
-                if (dzMax < minDist) { minDist = dzMax; push = (Vector3){ 0,0,1 }; }
-                // push out by radius plus small epsilon to avoid re-penetration
-                push = Vector3Scale(push, radius + 0.001f);
-            }
-            center = Vector3Add(center, push);
-            collided = true;
-        }
-    }
-    return collided;
+    if (physicsHandle == -1) return false;
+    return Hotones::Physics::ResolveSphereAgainstStatic(physicsHandle, center, radius);
 }
 
-// Ray (segment) vs AABB slab intersection. Returns true if ray origin + d*t intersects box within t in [0,1].
-static bool RayAABBIntersect(const Vector3 &o, const Vector3 &d, const BoundingBox &b, float &tOut, int &hitAxis) {
-    const float EPS = 1e-8f;
-    float tmin = -INFINITY, tmax = INFINITY;
-    float t1, t2;
-    float ta[3], tb[3];
-    float od[3] = { o.x, o.y, o.z };
-    float dd[3] = { d.x, d.y, d.z };
-    float bmin[3] = { b.min.x, b.min.y, b.min.z };
-    float bmax[3] = { b.max.x, b.max.y, b.max.z };
-    for (int i = 0; i < 3; ++i) {
-        if (fabsf(dd[i]) < EPS) {
-            if (od[i] < bmin[i] || od[i] > bmax[i]) return false;
-            ta[i] = -INFINITY; tb[i] = INFINITY;
-        } else {
-            t1 = (bmin[i] - od[i]) / dd[i];
-            t2 = (bmax[i] - od[i]) / dd[i];
-            ta[i] = fminf(t1, t2);
-            tb[i] = fmaxf(t1, t2);
-        }
-    }
-    tmin = fmaxf(fmaxf(ta[0], ta[1]), ta[2]);
-    tmax = fminf(fminf(tb[0], tb[1]), tb[2]);
-    if (tmax < 0.0f) return false; // box is behind
-    if (tmin > tmax) return false;
-    // choose tmin as hit
-    float t = tmin;
-    // determine which axis caused tmin (closest)
-    hitAxis = 0;
-    float best = fabsf(t - ta[0]);
-    for (int i = 1; i < 3; ++i) {
-        float diff = fabsf(t - ta[i]);
-        if (diff < best) { best = diff; hitAxis = i; }
-    }
-    tOut = t;
-    return true;
-}
-
-bool Hotones::CollidableModel::SweepSphere(const Vector3 &start, const Vector3 &end, float radius, Vector3 &hitPos, Vector3 &hitNormal, float &t) {
-    TraceLog(LOG_INFO, "CollidableModel::SweepSphere start=(%f,%f,%f) end=(%f,%f,%f) radius=%f",
-             start.x, start.y, start.z, end.x, end.y, end.z, radius);
-    Vector3 d = Vector3Subtract(end, start);
-    float segLen = Vector3Length(d);
-    if (segLen <= 1e-8f) return false;
-    // Direction for ray-AABB test
-    Vector3 dir = d;
-
-    bool found = false;
-    float bestT = 1.0f + 1e-6f;
-    BoundingBox bestBox;
-    int bestAxis = 0;
-
-    if (model.meshCount <= 0 || model.meshes == NULL) {
-        lastSweepHit = false;
-        lastSweepStart = start;
-        lastSweepEnd = end;
-        lastSweepT = 0.0f;
-        return false;
-    }
-
-    for (int i = 0; i < model.meshCount; i++) {
-        BoundingBox mb = GetMeshBoundingBox(model.meshes[i]);
-        // offset by model position
-        mb.min = Vector3Add(mb.min, position);
-        mb.max = Vector3Add(mb.max, position);
-        BoundingBox orig = mb; // original (offset)
-        // expand by radius
-        mb.min.x -= radius; mb.min.y -= radius; mb.min.z -= radius;
-        mb.max.x += radius; mb.max.y += radius; mb.max.z += radius;
-
-        float localT;
-        int axis;
-        if (!RayAABBIntersect(start, dir, mb, localT, axis)) continue;
-        // RayAABBIntersect returns t in the same parameterization as 'dir' (point = start + dir * t),
-        // so when 'dir' is the full segment (end-start) the returned t is already normalized [0,1].
-        float tNorm = localT;
-        if (tNorm >= 0.0f && tNorm <= 1.0f) {
-            if (tNorm < bestT) {
-                bestT = tNorm;
-                found = true;
-                bestBox = orig;
-                bestAxis = axis;
-            }
-        }
-    }
-
-    if (!found) {
-        TraceLog(LOG_INFO, "CollidableModel::SweepSphere no AABB hit for segment");
-        // store last sweep
-        lastSweepHit = false;
-        lastSweepStart = start;
-        lastSweepEnd = end;
-        lastSweepT = 0.0f;
-        return false;
-    }
-
-    // compute hit position
-    hitPos = Vector3Add(start, Vector3Scale(d, bestT));
-    // compute hit normal by comparing hitPos to box faces
-    const BoundingBox &b = bestBox;
-    const float EPSN = 1e-3f;
-    // check which face is closest
-    float dxMin = fabsf(hitPos.x - b.min.x);
-    float dxMax = fabsf(hitPos.x - b.max.x);
-    float dyMin = fabsf(hitPos.y - b.min.y);
-    float dyMax = fabsf(hitPos.y - b.max.y);
-    float dzMin = fabsf(hitPos.z - b.min.z);
-    float dzMax = fabsf(hitPos.z - b.max.z);
-    // pick minimum distance
-    float minDist = dxMin; hitNormal = (Vector3){ -1,0,0 };
-    if (dxMax < minDist) { minDist = dxMax; hitNormal = (Vector3){ 1,0,0 }; }
-    if (dyMin < minDist) { minDist = dyMin; hitNormal = (Vector3){ 0,-1,0 }; }
-    if (dyMax < minDist) { minDist = dyMax; hitNormal = (Vector3){ 0,1,0 }; }
-    if (dzMin < minDist) { minDist = dzMin; hitNormal = (Vector3){ 0,0,-1 }; }
-    if (dzMax < minDist) { minDist = dzMax; hitNormal = (Vector3){ 0,0,1 }; }
-
-    t = bestT;
-    TraceLog(LOG_INFO, "CollidableModel::SweepSphere hit t=%f pos=(%f,%f,%f) normal=(%f,%f,%f)",
-             t, hitPos.x, hitPos.y, hitPos.z, hitNormal.x, hitNormal.y, hitNormal.z);
-
-    // store last sweep
-    lastSweepHit = true;
+bool Hotones::CollidableModel::SweepSphere(const Vector3 &start, const Vector3 &end,
+                                           float radius,
+                                           Vector3 &hitPos, Vector3 &hitNormal, float &t) {
     lastSweepStart = start;
-    lastSweepEnd = end;
-    lastSweepHitPos = hitPos;
-    lastSweepHitNormal = hitNormal;
-    lastSweepT = bestT;
+    lastSweepEnd   = end;
 
-    return true;
+    if (physicsHandle == -1) {
+        lastSweepHit = false;
+        lastSweepT   = 0.f;
+        return false;
+    }
+
+    bool hit = Hotones::Physics::SweepSphereAgainstStatic(
+        physicsHandle, start, end, radius, hitPos, hitNormal, t);
+
+    lastSweepHit = hit;
+    if (hit) {
+        lastSweepHitPos    = hitPos;
+        lastSweepHitNormal = hitNormal;
+        lastSweepT         = t;
+    } else {
+        lastSweepT = 0.f;
+    }
+    return hit;
 }
 
 void Hotones::CollidableModel::DrawDebug() const {
