@@ -31,6 +31,7 @@ if [[ "${OS:-}" == "Windows_NT" ]]; then
         cp -f "$lib" build/
     done
 fi
+cp -r -f assets build/assets
 
 mkdir -p build/assets
 cp -r -f ../assets/. build/assets/
