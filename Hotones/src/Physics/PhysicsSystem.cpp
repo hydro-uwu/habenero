@@ -19,7 +19,12 @@
 #include <cfloat>
 #include <cstring>
 #include <iostream>
+#include <raylib.h>
 #include <memory>
+#include <thread>
+#include <condition_variable>
+#include <atomic>
+#include <deque>
 #include <mutex>
 #include <vector>
 #include <raymath.h>
@@ -378,11 +383,37 @@ struct StaticMeshEntry {
 static std::vector<StaticMeshEntry> g_staticMeshes;
 static int                          g_nextHandle = 1;
 static std::mutex                   g_meshMutex;
+// Background BVH build queue and worker
+struct BuildTask {
+    int handle = -1;
+    std::vector<Tri> tris;
+};
+static std::deque<BuildTask>        g_buildQueue;
+static std::mutex                   g_buildMutex;
+static std::condition_variable      g_buildCv;
+static std::thread                  g_buildWorker;
+static std::atomic<bool>            g_buildRunning{false};
+// Forward-declare worker function so InitPhysics can start the thread
+namespace Hotones { namespace Physics { void BuildWorkerThread(); } }
 
 namespace Hotones { namespace Physics {
 
-bool InitPhysics()    { return true; }
-void ShutdownPhysics(){ g_staticMeshes.clear(); }
+bool InitPhysics() {
+    if (!g_buildRunning.load()) {
+        g_buildRunning.store(true);
+        g_buildWorker = std::thread(BuildWorkerThread);
+        TraceLog(LOG_INFO, "[Physics] BVH worker thread started");
+    }
+    return true;
+}
+
+void ShutdownPhysics() {
+    g_buildRunning.store(false);
+    g_buildCv.notify_all();
+    if (g_buildWorker.joinable()) g_buildWorker.join();
+    g_staticMeshes.clear();
+    TraceLog(LOG_INFO, "[Physics] Shutdown complete");
+}
 
 int RegisterStaticMeshFromModel(const Model& model, const Vector3& position) {
     if (model.meshCount <= 0 || model.meshes == nullptr) return -1;
@@ -416,16 +447,26 @@ int RegisterStaticMeshFromModel(const Model& model, const Vector3& position) {
 
     if (tris.empty()) return -1;
 
+    // Create a placeholder entry immediately so callers get a handle
     StaticMeshEntry entry;
-    entry.bvh.Build(std::move(tris));
-
-    std::lock_guard<std::mutex> lk(g_meshMutex);
     entry.handle = g_nextHandle++;
-    g_staticMeshes.push_back(std::move(entry));
-    std::cout << "[Physics] Registered mesh handle=" << g_staticMeshes.back().handle
-              << " tris=" << g_staticMeshes.back().bvh.tris.size()
-              << " bvh_nodes=" << g_staticMeshes.back().bvh.nodes.size() << "\n";
-    return g_staticMeshes.back().handle;
+    {
+        std::lock_guard<std::mutex> lk(g_meshMutex);
+        g_staticMeshes.push_back(std::move(entry));
+    }
+
+    // Queue building the BVH in the background to avoid stalls during loading
+    BuildTask task;
+    task.handle = g_nextHandle - 1;
+    task.tris = std::move(tris);
+    {
+        std::lock_guard<std::mutex> lk(g_buildMutex);
+        g_buildQueue.push_back(std::move(task));
+    }
+    g_buildCv.notify_one();
+
+    TraceLog(LOG_INFO, "[Physics] Queued mesh build handle=%d tris=%zu", (g_nextHandle - 1), task.tris.size());
+    return (g_nextHandle - 1);
 }
 
 void UnregisterStaticMesh(int handle) {
@@ -434,6 +475,39 @@ void UnregisterStaticMesh(int handle) {
         if (it->handle == handle) { g_staticMeshes.erase(it); return; }
     }
 }
+
+// Background builder thread function
+void BuildWorkerThread() {
+    while (g_buildRunning.load()) {
+        BuildTask task;
+        {
+            std::unique_lock<std::mutex> lk(g_buildMutex);
+            g_buildCv.wait(lk, []{ return !g_buildQueue.empty() || !g_buildRunning.load(); });
+            if (!g_buildRunning.load() && g_buildQueue.empty()) return;
+            task = std::move(g_buildQueue.front());
+            g_buildQueue.pop_front();
+        }
+
+        // Build BVH (potentially expensive) outside mesh lock
+        BVH builtBvh;
+        builtBvh.Build(std::move(task.tris));
+
+        // Assign the built BVH back to the registered mesh if it still exists
+        {
+            std::lock_guard<std::mutex> lk(g_meshMutex);
+            for (auto &e : g_staticMeshes) {
+                if (e.handle == task.handle) {
+                    e.bvh = std::move(builtBvh);
+                    TraceLog(LOG_INFO, "[Physics] Built mesh handle=%d tris=%zu bvh_nodes=%zu",
+                             e.handle, e.bvh.tris.size(), e.bvh.nodes.size());
+                    break;
+                }
+            }
+        }
+    }
+}
+
+// BVH worker is started by InitPhysics() and stopped by ShutdownPhysics().
 
 bool SweepSphereAgainstStatic(int handle,
                                const Vector3& start, const Vector3& end,

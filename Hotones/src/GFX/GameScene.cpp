@@ -35,7 +35,7 @@ void GameScene::Init()
 
 
     // Load the main world model (replace path as needed)
-    worldModel = std::make_shared<CollidableModel>("assets/home.obj", (Vector3){0,0,0});
+    worldModel = std::make_shared<CollidableModel>("assets/hsome.obj", (Vector3){0,0,0}); // TODO: Change this after testing pak
     // Let player use the world for collisions (shared ownership)
     player.AttachWorld(worldModel);
 }

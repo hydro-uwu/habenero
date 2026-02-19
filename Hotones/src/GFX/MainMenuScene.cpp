@@ -142,7 +142,12 @@ void MainMenuScene::DrawMain() {
     if (Button("JOIN GAME", { cx, cy + 72,  bw, bh })) m_state = State::Join;
     if (Button("QUIT",      { cx, cy + 144, bw, bh })) {
         m_action = Action::Quit;
+        TraceLog(LOG_INFO, "MainMenu: QUIT button clicked (mouse=(%.1f,%.1f) pressed=%d released=%d)",
+                 GetMousePosition().x, GetMousePosition().y,
+                 IsMouseButtonDown(MOUSE_BUTTON_LEFT) ? 1 : 0,
+                 IsMouseButtonReleased(MOUSE_BUTTON_LEFT) ? 1 : 0);
         MarkFinished();
+        TraceLog(LOG_INFO, "MainMenu: Marked finished; action=Quit");
     }
 
     const char* hint = "Tip: run with --server to start a dedicated headless server";

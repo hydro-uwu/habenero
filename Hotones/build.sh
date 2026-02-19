@@ -9,6 +9,7 @@ set -euo pipefail
 
 libs=(
     "/ucrt64/bin/libstdc++-6.dll"
+    "/ucrt64/bin/libassimp-6.dll"
     "/ucrt64/bin/libgcc_s_seh-1.dll"
     "/ucrt64/bin/libwinpthread-1.dll"
     "/ucrt64/bin/libraylib.dll"

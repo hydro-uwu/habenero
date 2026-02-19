@@ -8,23 +8,28 @@ type: cpp
 main: src/main.cpp
 build:
   mode: debug
-  output: build
-  target: debug
-  compiler: cpp
   incremental: true
   wildcard: true
   link: true
-  objdir: build/obj
-  testMain: ''
-  testExtraArgs: []
-  futLanguage: ''
-  futName: ''
-  futDefines: []
-  futIncludes: []
-  futReadOnly: []
-  futExtraArgs: []
-  extraArgs:
-  - ' -Isrc/include -lraylib -llua -lassimp -std=c++17  -static-libgcc -static-libstdc++ -DHOTONES_USE_JOLT'
+  objdir: obj
+  output: build
+  target: debug
+  compiler: cpp
+  std: "c++20"
+  includeDirs:
+    - src/include
+  extraArgs: 
+    - -lraylib
+    - -llua
+    - -lassimp
+
+  winArgs:
+    - -lws2_32
+
+  
+  generateCompileCommands: true
+  # extraArgs:
+  # - ' -Isrc/include -lraylib -llua -lassimp -std=c++17  -static-libgcc -static-libstdc++ -DHOTONES_USE_JOLT -lws2_32'
   jobs: 12
 dependencies: {}
 dependencyCategories: {}
