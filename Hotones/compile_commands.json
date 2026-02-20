@@ -186,6 +186,11 @@
   },
   {
     "directory": "D:/HabeneroHotel/Hotones",
+    "command": "g\u002B\u002B -c -g -O0 \u0022D:/HabeneroHotel/Hotones/src/Scripting/LuaLibraries/Players.cpp\u0022 -o \u0022D:/HabeneroHotel/Hotones/obj/Scripting_LuaLibraries_Players.cpp.o\u0022 -lraylib -llua -lassimp -lws2_32 -I\u0022src/include\u0022 --std=c\u002B\u002B20",
+    "file": "D:/HabeneroHotel/Hotones/src/Scripting/LuaLibraries/Players.cpp"
+  },
+  {
+    "directory": "D:/HabeneroHotel/Hotones",
     "command": "g\u002B\u002B -c -g -O0 \u0022D:/HabeneroHotel/Hotones/src/Scripting/LuaLibraries/Rendering.cpp\u0022 -o \u0022D:/HabeneroHotel/Hotones/obj/Scripting_LuaLibraries_Rendering.cpp.o\u0022 -lraylib -llua -lassimp -lws2_32 -I\u0022src/include\u0022 --std=c\u002B\u002B20",
     "file": "D:/HabeneroHotel/Hotones/src/Scripting/LuaLibraries/Rendering.cpp"
   },

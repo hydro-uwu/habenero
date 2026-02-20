@@ -234,10 +234,6 @@ void Player::UpdateBody(char side, char forward, bool jumpPressed, bool crouchHo
         body.position.y = 0.0f;
         body.velocity.y = 0.0f;
         body.isGrounded = true;
-        if (enableSourceBhop) {
-            // Preserve horizontal speed, do not cap to MAX_SPEED
-            // (No action needed, just don't reset/cap)
-        } else {
             // Cap horizontal speed to MAX_SPEED when landing (default behavior)
             float hSpeed = sqrtf(body.velocity.x * body.velocity.x + body.velocity.z * body.velocity.z);
             if (hSpeed > MAX_SPEED) {
@@ -245,7 +241,7 @@ void Player::UpdateBody(char side, char forward, bool jumpPressed, bool crouchHo
                 body.velocity.x *= scale;
                 body.velocity.z *= scale;
             }
-        }
+        
     }
 }
 

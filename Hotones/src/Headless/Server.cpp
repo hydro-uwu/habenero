@@ -64,6 +64,8 @@ void RunHeadlessServer(uint16_t port, const std::string& pakPath) {
             std::cout << "[Server] -- Player " << static_cast<int>(id) << " left\n";
             script.firePlayerLeft(id);
         };
+        // Give the Lua pack access to live player data via network.*
+        script.setNetworkManager(&server);
     } else {
         server.OnPlayerJoined = [](uint8_t id, const char* name) {
             std::cout << "[Server] ++ Player " << static_cast<int>(id)

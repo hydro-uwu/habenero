@@ -38,7 +38,7 @@ public:
 
     Player* GetPlayer() { return &m_player; }
 
-    void SetNetworkManager(Net::NetworkManager* nm) { m_netMgr = nm; }
+    void SetNetworkManager(Net::NetworkManager* nm);
 
 private:
     Scripting::CupLoader*            m_script   = nullptr;

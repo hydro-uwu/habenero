@@ -153,7 +153,7 @@ void MainMenuScene::Draw() {
     for (int x = 0; x < sw; x += 60) DrawLine(x, 0, x, sh, {28, 24, 40, 255});
     for (int y = 0; y < sh; y += 60) DrawLine(0, y, sw, y, {28, 24, 40, 255});
 
-    const char* title = "HABANERO HOTEL";
+    const char* title = "Habenero";
     int tfs = 64;
     DrawText(title, (sw - MeasureText(title, tfs)) / 2, 50, tfs, ACCENT);
     DrawText("alpha v0.1",

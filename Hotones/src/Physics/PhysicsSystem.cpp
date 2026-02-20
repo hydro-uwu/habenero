@@ -553,4 +553,97 @@ bool ResolveSphereAgainstStatic(int handle, Vector3& center, float radius) {
     return pushed;
 }
 
+// ─── Raycasting ───────────────────────────────────────────────────────────────
+
+// Slab-based ray vs AABB. Returns true if the ray [0, tMax] hits the box.
+static bool RayAabb(Vector3 ro, Vector3 rd, Vector3 bmin, Vector3 bmax, float tMax) {
+    float tEnter = 0.f;
+    for (int i = 0; i < 3; ++i) {
+        float o  = (&ro.x)[i];
+        float d  = (&rd.x)[i];
+        float mn = (&bmin.x)[i];
+        float mx = (&bmax.x)[i];
+        if (fabsf(d) < 1e-10f) {
+            if (o < mn || o > mx) return false;
+        } else {
+            float t1 = (mn - o) / d;
+            float t2 = (mx - o) / d;
+            if (t1 > t2) { float tmp = t1; t1 = t2; t2 = tmp; }
+            tEnter = fmaxf(tEnter, t1);
+            tMax   = fminf(tMax,   t2);
+            if (tEnter > tMax) return false;
+        }
+    }
+    return true;
+}
+
+// Möller-Trumbore ray-vs-triangle. Returns t > 0 on hit, FLT_MAX otherwise.
+// Fills outNormal with the face normal flipped toward the ray origin.
+static float RayTriangleMT(Vector3 ro, Vector3 rd,
+                             Vector3 ta, Vector3 tb, Vector3 tc,
+                             Vector3& outNormal) {
+    const float EPS = 1e-8f;
+    Vector3 e1  = v3sub(tb, ta);
+    Vector3 e2  = v3sub(tc, ta);
+    Vector3 h   = v3cross(rd, e2);
+    float   a   = v3dot(e1, h);
+    if (fabsf(a) < EPS) return FLT_MAX;   // Ray parallel to triangle
+    float   f   = 1.f / a;
+    Vector3 s   = v3sub(ro, ta);
+    float   u   = f * v3dot(s, h);
+    if (u < 0.f || u > 1.f) return FLT_MAX;
+    Vector3 q   = v3cross(s, e1);
+    float   v   = f * v3dot(rd, q);
+    if (v < 0.f || u + v > 1.f) return FLT_MAX;
+    float   t   = f * v3dot(e2, q);
+    if (t < 1e-6f) return FLT_MAX;        // Behind ray origin
+    Vector3 n = v3norm(v3cross(e1, e2));
+    // Flip so the normal faces the incoming ray
+    if (v3dot(n, rd) > 0.f) n = v3scale(n, -1.f);
+    outNormal = n;
+    return t;
+}
+
+// BVH traversal for raycasting — records the nearest hit.
+static void RaycastNodeBVH(const BVH& bvh, int nodeIdx,
+                             Vector3 ro, Vector3 rd, float& bestT, Vector3& bestN) {
+    if (nodeIdx < 0 || nodeIdx >= (int)bvh.nodes.size()) return;
+    const BVHNode& node = bvh.nodes[nodeIdx];
+    if (!RayAabb(ro, rd, node.bmin, node.bmax, bestT)) return;
+    if (node.rightChild == -1) {
+        // Leaf — test each triangle
+        for (int i = node.triStart; i < node.triStart + node.triCount; ++i) {
+            const Tri& tri = bvh.tris[i];
+            Vector3 n;
+            float t = RayTriangleMT(ro, rd, tri.a, tri.b, tri.c, n);
+            if (t < bestT) { bestT = t; bestN = n; }
+        }
+        return;
+    }
+    RaycastNodeBVH(bvh, nodeIdx + 1,       ro, rd, bestT, bestN);
+    RaycastNodeBVH(bvh, node.rightChild,   ro, rd, bestT, bestN);
+}
+
+bool RaycastAgainstStatic(int handle, const Vector3& origin, const Vector3& dir,
+                           float maxDist, Vector3& hitPos, Vector3& hitNormal, float& t) {
+    const BVH* bvhPtr = nullptr;
+    {
+        std::lock_guard<std::mutex> lk(g_meshMutex);
+        for (const auto& e : g_staticMeshes)
+            if (e.handle == handle) { bvhPtr = &e.bvh; break; }
+        if (!bvhPtr || bvhPtr->nodes.empty()) return false;
+    }
+
+    float   bestT = maxDist;
+    Vector3 bestN = { 0, 1, 0 };
+    RaycastNodeBVH(*bvhPtr, 0, origin, dir, bestT, bestN);
+
+    if (bestT >= maxDist) return false;
+
+    t         = bestT;
+    hitNormal = bestN;
+    hitPos    = v3add(origin, v3scale(dir, bestT));
+    return true;
+}
+
 }} // namespace Hotones::Physics

@@ -31,10 +31,10 @@ if [[ "${OS:-}" == "Windows_NT" ]]; then
         cp -f "$lib" build/
     done
 fi
-cp -r -f assets build/assets
+
 
 mkdir -p build/assets
-cp -r -f ../assets/. build/assets/
+cp -r -f assets/. build/assets/
 # if meow is not on path, use the local copy and if -- compile wasn't provided, use meow to build the project.
 if ! command -v meow &> /dev/null; then
     echo "meow could not be found, using local copy"

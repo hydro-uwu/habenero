@@ -12,6 +12,9 @@
 #include "../include/Scripting/LuaLoader/ServerLib.hpp"
 #include "../include/Scripting/LuaLoader/MeshGen.hpp"
 #include "../include/Scripting/LuaLoader/Lighting.hpp"
+#include "../include/Scripting/LuaLoader/Players.hpp"
+#include "../include/Scripting/LuaLoader/Physics.hpp"
+#include <server/NetworkManager.hpp>
 
 #include <lua.hpp>
 
@@ -80,6 +83,14 @@ void CupLoader::requestReload()
     g_reloadRequested.store(true);
 }
 
+void CupLoader::setNetworkManager(Net::NetworkManager* nm)
+{
+    m_netMgr = nm;
+    // Update the Players library immediately so Lua can query live player data
+    // even when init() was already called before the connection was established.
+    Hotones::Scripting::LuaLoader::setPlayersNetworkManager(nm);
+}
+
 CupLoader::~CupLoader()
 {
     if (L) {
@@ -101,6 +112,9 @@ bool CupLoader::init()
     Hotones::Scripting::LuaLoader::registerServer(L);
     Hotones::Scripting::LuaLoader::registerMeshGen(L);
     Hotones::Scripting::LuaLoader::registerLighting(L);
+    Hotones::Scripting::LuaLoader::registerPlayers(L, m_netMgr);
+    Hotones::Scripting::LuaLoader::registerPhysics(L);
+
 
     // Register timing globals so Lua scripts work in both headless and windowed modes
     g_luaTimingInit = false; // reset on each new Lua state

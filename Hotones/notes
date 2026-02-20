@@ -1,0 +1,2 @@
+networking gets invalidated when we reload lua.
+players don't exist to lua.

@@ -1,0 +1,88 @@
+====== physics ======
+
+Physics query functions backed by the engine's BVH-accelerated static mesh
+system.  All meshes must be registered via the C++ API
+(''RegisterStaticMeshFromModel'') before they can be queried from Lua.
+
+===== Functions =====
+
+==== physics.raycast(handle, ox, oy, oz, dx, dy, dz [, maxDist]) ====
+
+Cast an infinite (or length-capped) ray against a registered static mesh.
+
+The direction vector does **not** need to be normalised.  The returned ''t''
+value is in the same units as the direction vector's length (i.e. if ''dir''
+is a unit vector, ''t'' is the distance in world units).
+
+^ Parameter ^ Type    ^ Default ^ Description ^
+| ''handle''  | integer | —       | Handle returned by ''RegisterStaticMeshFromModel''. |
+| ''ox, oy, oz'' | number | — | Ray origin in world space. |
+| ''dx, dy, dz'' | number | — | Ray direction (unnormalised OK). |
+| ''maxDist''  | number  | 1000    | Maximum ray length. |
+
+**Returns (hit):**
+
+^ Return ^ Type ^ Description ^
+| 1 | boolean | ''true'' |
+| 2–4 | number | Hit position ''x, y, z''. |
+| 5–7 | number | Surface normal ''x, y, z'' (unit vector, facing the ray). |
+| 8 | number | Parametric distance ''t'' from origin. |
+
+**Returns (miss):**
+
+^ Return ^ Type ^ Description ^
+| 1 | boolean | ''false'' |
+
+<code lua>
+-- Ground-check: shoot straight down from the player
+local hit, px, py, pz, nx, ny, nz, dist =
+    physics.raycast(worldMeshHandle,
+                    player.x, player.y, player.z,
+                    0, -1, 0,   -- straight down (unit dir → t == distance)
+                    50)         -- max 50 units
+if hit then
+    print(string.format("Ground at y=%.2f  normal=(%.2f,%.2f,%.2f)", py, nx, ny, nz))
+end
+</code>
+
+----
+
+==== physics.sweepSphere(handle, sx, sy, sz, ex, ey, ez, radius) ====
+
+Sweep a sphere from start to end against a registered static mesh and
+return the first contact point.  Useful for continuous collision detection
+(e.g. character movement).
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''handle'' | integer | — | Handle returned by ''RegisterStaticMeshFromModel''. |
+| ''sx, sy, sz'' | number | — | Sphere center at sweep start. |
+| ''ex, ey, ez'' | number | — | Sphere center at sweep end. |
+| ''radius'' | number | — | Sphere radius. |
+
+**Returns (hit):**
+
+^ Return ^ Type ^ Description ^
+| 1 | boolean | ''true'' |
+| 2–4 | number | Contact position ''x, y, z''. |
+| 5–7 | number | Contact normal ''x, y, z'' (unit vector). |
+| 8 | number | Parametric fraction ''t ∈ [0, 1]'' along the sweep segment. |
+
+**Returns (miss):**
+
+^ Return ^ Type ^ Description ^
+| 1 | boolean | ''false'' |
+
+<code lua>
+-- Move the player and detect collisions
+local hit, cx, cy, cz, nx, ny, nz, t =
+    physics.sweepSphere(worldMeshHandle,
+                        player.x, player.y, player.z,
+                        player.x + vel.x, player.y + vel.y, player.z + vel.z,
+                        0.4)   -- player capsule radius
+if hit then
+    -- Stop at the contact point and slide along the surface normal
+    player.x = cx
+    player.y = cy
+    player.z = cz
+end
+</code>

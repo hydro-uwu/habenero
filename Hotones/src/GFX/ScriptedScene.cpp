@@ -74,9 +74,6 @@ void ScriptedScene::Draw()
         // World model (loaded from Init.MainScene)
         if (m_world) {
             m_world->Draw();
-        } else {
-            // Visual-only fallback ground so the player isn't floating in the void
-            DrawFallbackGround();
         }
 
         // ── Lua 3D pass ───────────────────────────────────────────────────────
@@ -84,18 +81,19 @@ void ScriptedScene::Draw()
         // to raylib 3D primitives so they render into the 3D scene correctly.
         if (m_script) m_script->draw3D();
 
-        // Remote player ghosts
-        if (m_netMgr) {
-            for (auto& [id, rp] : m_netMgr->GetRemotePlayers()) {
-                if (!rp.active) continue;
-                DrawCube({ rp.posX, rp.posY + 1.0f, rp.posZ },
-                         0.6f, 2.0f, 0.6f, { 255, 80, 80, 200 });
-                DrawCube({ rp.posX, rp.posY + 2.3f, rp.posZ },
-                         0.5f, 0.5f, 0.5f, { 255, 140, 60, 220 });
-                DrawCubeWires({ rp.posX, rp.posY + 1.0f, rp.posZ },
-                              0.6f, 2.0f, 0.6f, DARKGRAY);
-            }
-        }
+        //TODO: make devs handle ghosts instead.
+        // // Remote player ghosts
+        // if (m_netMgr) {
+        //     for (auto& [id, rp] : m_netMgr->GetRemotePlayers()) {
+        //         if (!rp.active) continue;
+        //         DrawCube({ rp.posX, rp.posY + 1.0f, rp.posZ },
+        //                  0.6f, 2.0f, 0.6f, { 255, 80, 80, 200 });
+        //         DrawCube({ rp.posX, rp.posY + 2.3f, rp.posZ },
+        //                  0.5f, 0.5f, 0.5f, { 255, 140, 60, 220 });
+        //         DrawCubeWires({ rp.posX, rp.posY + 1.0f, rp.posZ },
+        //                       0.6f, 2.0f, 0.6f, DARKGRAY);
+        //     }
+        // }
 
     EndMode3D();
 
@@ -108,6 +106,12 @@ void ScriptedScene::Draw()
 void ScriptedScene::Unload()
 {
     if (m_world) m_world.reset();
+}
+
+void ScriptedScene::SetNetworkManager(Net::NetworkManager* nm)
+{
+    m_netMgr = nm;
+    if (m_script) m_script->setNetworkManager(nm);
 }
 
 // A simple tiled floor so packs without a MainScene have visible ground.

@@ -233,7 +233,7 @@ int main(int argc, char** argv)
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
-        if (__startup_log) __startup_log << "main loop iter\n";
+        // if (__startup_log) __startup_log << "main loop iter\n";
         TraceLog(LOG_DEBUG, "Main loop iteration start — frameTime=%.6f scene=%s", GetFrameTime(), sceneMgr.GetCurrentName().c_str());
         // Update
         //----------------------------------------------------------------------------------

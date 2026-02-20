@@ -22,4 +22,13 @@ bool SweepSphereAgainstStatic(int handle, const Vector3& start, const Vector3& e
 // triangles in one pass. Returns true if any triangle was overlapping.
 bool ResolveSphereAgainstStatic(int handle, Vector3& center, float radius);
 
+// Ray cast against a registered static mesh (Möller-Trumbore per-triangle).
+// origin + dir * t gives the hit point; dir does NOT need to be normalised
+// (the returned t is in the same units as dir's length).
+// maxDist caps the search — pass a large value (e.g. 1000.f) for "infinite" rays.
+// Returns true if hit; t ∈ [0, maxDist].
+bool RaycastAgainstStatic(int handle, const Vector3& origin, const Vector3& dir,
+                           float maxDist,
+                           Vector3& hitPos, Vector3& hitNormal, float& t);
+
 }} // namespace Hotones::Physics

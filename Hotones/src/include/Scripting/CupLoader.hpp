@@ -6,6 +6,8 @@
 
 struct lua_State;
 
+namespace Hotones::Net { class NetworkManager; }
+
 namespace Hotones::Scripting {
 
 class CupPackage;
@@ -71,17 +73,22 @@ public:
     // active Lua state while a C function is running inside it.
     void requestReload();
 
+    // Provide (or update) the NetworkManager pointer used by the `network.*`
+    // Lua library.  Safe to call before or after init().
+    void setNetworkManager(Net::NetworkManager* nm);
+
 private:
     // Push instance + method, call with args already on stack, handle errors.
     // nargs = number of extra arguments above the implicit `self`.
     bool callMethod(const char* method, int nargs = 0);
 
-    lua_State*  L;
-    std::string m_mainScene;
-    std::string m_initPath;    ///< absolute path to last loaded init.lua
-    std::string m_packageRoot; ///< package root directory
-    int         m_classRef;  ///< LUA_REGISTRY key of MainClass table; LUA_NOREF = none
-        std::string m_lastLuaError; ///< Last Lua error message
+    lua_State*             L;
+    std::string            m_mainScene;
+    std::string            m_initPath;    ///< absolute path to last loaded init.lua
+    std::string            m_packageRoot; ///< package root directory
+    int                    m_classRef;    ///< LUA_REGISTRY key of MainClass table; LUA_NOREF = none
+    std::string            m_lastLuaError; ///< Last Lua error message
+    Net::NetworkManager*   m_netMgr = nullptr; ///< optional network manager for network.* API
     // reload request flag handled in the implementation file
 };
 

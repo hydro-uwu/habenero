@@ -1,0 +1,151 @@
+====== network ======
+
+Query live state of connected players.  Available on both the **headless server** and the **windowed client**.
+
+All functions return sensible zero/empty defaults when there is no active network connection, so you do not need to guard every call with ''network.isConnected()''.
+
+===== Player table =====
+
+Several functions return a **player table**.  It always contains:
+
+^ Field ^ Type ^ Description ^
+| ''id''   | integer | Unique player ID assigned by the server (1 – 254). |
+| ''name'' | string  | Player's display name (up to 15 characters). |
+| ''x''    | number  | World position X. |
+| ''y''    | number  | World position Y. |
+| ''z''    | number  | World position Z. |
+| ''rotX'' | number  | Yaw   — horizontal look angle (radians). |
+| ''rotY'' | number  | Pitch — vertical   look angle (radians). |
+
+===== Functions =====
+
+==== network.getPlayers() ====
+
+Return an array of player tables for every **active** remote player currently connected.
+
+**Returns:** ''table[]'' — Numerically-indexed array, empty when no players are connected.
+
+<code lua>
+function MyGame:draw3D()
+    for _, p in ipairs(network.getPlayers()) do
+        -- draw a custom model at each player's position
+        mesh.drawCube(p.x, p.y + 1, p.z,  0.6, 2.0, 0.6,  255, 100, 100, 220)
+    end
+end
+</code>
+
+----
+
+==== network.getPlayer(id) ====
+
+Return the player table for a specific player ID, or ''nil'' if that player is not active.
+
+^ Parameter ^ Type ^ Description ^
+| ''id'' | integer | Player ID to look up (1 – 254). |
+
+**Returns:** ''table | nil''
+
+<code lua>
+function MyGame:onPlayerJoined(id, name)
+    local p = network.getPlayer(id)
+    if p then
+        server.log(name .. " spawned at " .. p.x .. ", " .. p.y .. ", " .. p.z)
+    end
+end
+</code>
+
+----
+
+==== network.getPlayerCount() ====
+
+Return the number of currently active remote players.
+
+**Returns:** ''integer'' — 0 when nobody is connected.
+
+<code lua>
+function MyGame:Update()
+    if network.getPlayerCount() == 0 then
+        server.log("Waiting for players...")
+    end
+end
+</code>
+
+----
+
+==== network.getLocalId() ====
+
+Return your own assigned player ID.
+
+**Returns:** ''integer'' — 0 if not connected or running as a pure server.
+
+<code lua>
+local myId = network.getLocalId()
+server.log("I am player #" .. myId)
+</code>
+
+----
+
+==== network.getMode() ====
+
+Return a string describing the current networking role.
+
+**Returns:** ''string'' — one of:
+
+| ''%%"server"%%'' | Running as the host / dedicated server. |
+| ''%%"client"%%'' | Connected to a remote server. |
+| ''%%"none"%%''   | No active network connection. |
+
+<code lua>
+if network.getMode() == "server" then
+    server.log("I am the host")
+end
+</code>
+
+----
+
+==== network.isConnected() ====
+
+Return whether the local machine is connected to a server as a client.
+
+**Returns:** ''boolean'' — ''true'' only in ''%%"client"%%'' mode with an active connection.
+
+<code lua>
+if not network.isConnected() then
+    server.log("Offline — skipping sync")
+    return
+end
+</code>
+
+===== Example: custom player models =====
+
+<code lua>
+MyGame = {}
+
+function MyGame:Init()
+    server.log("Pack loaded!  Mode: " .. network.getMode())
+end
+
+function MyGame:draw3D()
+    -- Replace the default ghost cubes with your own art
+    for _, p in ipairs(network.getPlayers()) do
+        if p.id ~= network.getLocalId() then
+            -- body
+            mesh.drawCube(p.x, p.y + 1.0, p.z,   0.6, 1.8, 0.6,  80, 180, 255, 230)
+            -- head
+            mesh.drawCube(p.x, p.y + 2.3, p.z,   0.5, 0.5, 0.5,  255, 220, 180, 255)
+        end
+    end
+end
+
+function MyGame:onPlayerJoined(id, name)
+    server.log(name .. " joined (id=" .. id .. ", total=" .. network.getPlayerCount() .. ")")
+end
+
+function MyGame:onPlayerLeft(id)
+    server.log("Player " .. id .. " left")
+end
+
+Init = { MainClass = MyGame }
+</code>
+
+> **Note:** ''network.getPlayers()'' returns **remote** players only — it does not include the local player.  Use [[lua_api:globals|GetFrameTime()]] and the player-event hooks to manage your own character separately.

@@ -48,6 +48,7 @@ function Demo:Update()
         self.boxRot = 0
         server.log("Rotation reset")
     end
+    
 end
 
 ------------------------------------------------------------------------
@@ -59,27 +60,26 @@ function Demo:draw3D()
     -- Axis marker at origin
     mesh.axes(0, 0.01, 0, 2)
 
-    -- Checkerboard floor
-    local tileSize = 4
-    local range    = 4
-    for tx = -range, range do
-        for tz = -range, range do
-            local px = tx * tileSize
-            local pz = tz * tileSize
-            if (tx + tz) % 2 == 0 then
-                mesh.plane(px, 0, pz, tileSize, tileSize,  60,  60,  60)
-            else
-                mesh.plane(px, 0, pz, tileSize, tileSize,  90,  90,  90)
-            end
-        end
-    end
+    -- -- Checkerboard floor
+    -- local tileSize = 4
+    -- local range    = 4
+    -- for tx = -range, range do
+    --     for tz = -range, range do
+    --         local px = tx * tileSize
+    --         local pz = tz * tileSize
+    --         if (tx + tz) % 2 == 0 then
+    --             mesh.plane(px, 0, pz, tileSize, tileSize,  60,  60,  60)
+    --         else
+    --             mesh.plane(px, 0, pz, tileSize, tileSize,  90,  90,  90)
+    --         end
+    --     end
+    -- end
 
     -- Spinning box orbiting the pillar
     local bx = math.sin(math.rad(self.boxRot)) * 3
     local bz = math.cos(math.rad(self.boxRot)) * 3
     mesh.box(bx, 1, bz,  1, 1, 1,  255, 120, 40)
     mesh.boxWires(bx, 1, bz,  1.01, 1.01, 1.01,  255, 220, 100)
-
     -- Cyan pillar at centre
     mesh.cylinder(0, 0, 0,  0.3, 0.3, 4,  12,  80, 200, 220)
 
@@ -91,6 +91,17 @@ function Demo:draw3D()
         local r  = math.floor(100 + i * 25)
         local g  = math.floor(255 - i * 30)
         mesh.sphere(sx, 0.5, sz,  0.4,  8, 8,  r, g, 120)
+    end
+
+    -- Nametags for remote players (uses the new network.* API)
+    -- Draw a thin plate above each remote player's head so packs can
+    -- visually identify players in the 3D world.  This is deliberately
+    -- simple and uses mesh primitives so it works inside draw3D().
+    for _, p in ipairs(network.getPlayers()) do
+        -- small plate above the head
+        mesh.box(p.x, p.y + 2.6, p.z,  0.02, 0.28, 0.9,  20, 20, 20)
+        -- slight highlight on the front face
+        mesh.box(p.x, p.y + 2.6, p.z + 0.47,  0.01, 0.26, 0.6,  220, 220, 220)
     end
 end
 
