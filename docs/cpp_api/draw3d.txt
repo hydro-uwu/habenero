@@ -1,0 +1,137 @@
+====== Hotones::Draw3D ======
+
+3-D primitive drawing.
+Include: ''<Draw3D/Draw3D.hpp>''
+
+These functions **must only be called from inside a ''BeginMode3D'' / ''EndMode3D'' block**.
+In a scripted scene that means your ''draw3D()'' callback; calling them
+outside 3-D mode produces incorrect results.
+
+All ''Color'' parameters are raylib ''Color'' structs (RGBA, 0 – 255 per channel).
+Every function provides a default colour so the parameter is optional.
+
+===== Functions =====
+
+==== Hotones::Draw3D::Plane(x, y, z, width, depth [, color]) ====
+
+Draw a flat horizontal plane centred at (x, y, z).
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''x, y, z'' | ''float'' | — | World-space centre position. |
+| ''width'' | ''float'' | — | Extent along the X axis. |
+| ''depth'' | ''float'' | — | Extent along the Z axis. |
+| ''color'' | ''Color'' | { 100, 180, 100, 255 } | Fill colour. |
+
+<code cpp>
+Hotones::Draw3D::Plane(0.f, 0.f, 0.f, 20.f, 20.f, { 80, 120, 80, 255 });
+</code>
+
+----
+
+==== Hotones::Draw3D::Box(x, y, z, w, h, d [, color]) ====
+
+Draw a solid filled cuboid.
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''x, y, z'' | ''float'' | — | Centre position. |
+| ''w'' | ''float'' | — | Size along X. |
+| ''h'' | ''float'' | — | Size along Y. |
+| ''d'' | ''float'' | — | Size along Z. |
+| ''color'' | ''Color'' | WHITE | Fill colour. |
+
+<code cpp>
+Hotones::Draw3D::Box(0.f, 1.f, 0.f, 1.f, 2.f, 1.f, { 200, 100, 60, 255 });
+</code>
+
+----
+
+==== Hotones::Draw3D::BoxWires(x, y, z, w, h, d [, color]) ====
+
+Draw a wireframe box outline.
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''color'' | ''Color'' | { 200, 200, 200, 255 } | Wire colour. |
+
+<code cpp>
+Hotones::Draw3D::BoxWires(0.f, 1.f, 0.f, 1.f, 2.f, 1.f, YELLOW);
+</code>
+
+----
+
+==== Hotones::Draw3D::Sphere(x, y, z, radius [, rings, slices, color]) ====
+
+Draw a solid UV sphere.
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''x, y, z'' | ''float'' | — | Centre position. |
+| ''radius'' | ''float'' | — | Sphere radius. |
+| ''rings'' | ''int'' | 16 | Horizontal ring subdivisions. |
+| ''slices'' | ''int'' | 16 | Vertical slice subdivisions. |
+| ''color'' | ''Color'' | WHITE | Fill colour. |
+
+<code cpp>
+Hotones::Draw3D::Sphere(0.f, 3.f, 0.f, 0.5f, 8, 8, { 255, 50, 50, 255 });
+</code>
+
+----
+
+==== Hotones::Draw3D::Cylinder(x, y, z, radiusTop, radiusBottom, height [, slices, color]) ====
+
+Draw a cylinder or cone (set one radius to ''0'' for a cone).
+The base is at (x, y, z) and the cylinder extends upward by ''height''.
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''x, y, z'' | ''float'' | — | Base centre position. |
+| ''radiusTop'' | ''float'' | — | Radius of the top cap. |
+| ''radiusBottom'' | ''float'' | — | Radius of the base cap. |
+| ''height'' | ''float'' | — | Height along Y. |
+| ''slices'' | ''int'' | 16 | Radial segment count. |
+| ''color'' | ''Color'' | WHITE | Fill colour. |
+
+<code cpp>
+// Cone pointing up
+Hotones::Draw3D::Cylinder(0.f, 0.f, 0.f, 0.f, 0.5f, 2.f, 12, { 100, 200, 255, 255 });
+</code>
+
+----
+
+==== Hotones::Draw3D::Line(x1, y1, z1, x2, y2, z2 [, color]) ====
+
+Draw a single 3-D line segment between two world-space points.
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''x1,y1,z1'' | ''float'' | — | Start point. |
+| ''x2,y2,z2'' | ''float'' | — | End point. |
+| ''color'' | ''Color'' | WHITE | Line colour. |
+
+<code cpp>
+Hotones::Draw3D::Line(0.f, 0.f, 0.f, 5.f, 5.f, 5.f, YELLOW);
+</code>
+
+----
+
+==== Hotones::Draw3D::Grid([slices, spacing]) ====
+
+Draw a flat reference grid on the XZ plane centred at the origin.
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''slices'' | ''int'' | 20 | Number of divisions in each direction. |
+| ''spacing'' | ''float'' | ''1.0f'' | Distance between grid lines (world units). |
+
+<code cpp>
+Hotones::Draw3D::Grid(20, 1.f);
+</code>
+
+----
+
+==== Hotones::Draw3D::Axes([x, y, z, size]) ====
+
+Draw RGB axis marker lines (X = red, Y = green, Z = blue).
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''x, y, z'' | ''float'' | 0, 0, 0 | Origin position. |
+| ''size'' | ''float'' | ''1.0f'' | Length of each axis line. |
+
+<code cpp>
+Hotones::Draw3D::Axes(0.f, 0.01f, 0.f, 2.f);
+</code>

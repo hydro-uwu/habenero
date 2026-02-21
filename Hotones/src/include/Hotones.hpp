@@ -1,5 +1,16 @@
 #pragma once
 #include <raylib.h>
+
+// ── Engine convenience API — one include to get everything ───────────────────
+// Each sub-header mirrors its Lua counterpart exactly so the same logic can be
+// written identically in C++ or Lua.
+#include <Input/Input.hpp>          // Hotones::Input::   (keyboard + mouse)
+#include <Audio/Audio.hpp>          // Hotones::Audio::   (sound bus)
+#include <Render/Render.hpp>        // Hotones::Render::  (2-D draw)
+#include <Lighting/Lighting.hpp>    // Hotones::Lighting::(dynamic lights)
+#include <Draw3D/Draw3D.hpp>        // Hotones::Draw3D::  (3-D primitives)
+#include <Physics/PhysicsHelpers.hpp> // Hotones::Physics:: (raycast/sweep result structs)
+
 namespace Hotones {
 
 class core {

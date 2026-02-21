@@ -1,0 +1,206 @@
+====== Hotones::Lighting ======
+
+Runtime lighting control using the engine's built-in Blinn-Phong GLSL shader.
+Include: ''<Lighting/Lighting.hpp>''
+
+Supports up to **8 simultaneous dynamic lights** (point, directional, spot).
+The shader is automatically applied to world models loaded through
+''SceneImporter''.
+
+Call ''Lighting::*'' functions from ''Init()'', ''Update()'', or a 3-D draw
+callback.  Calling them from a pure 2-D draw pass is harmless but has no
+visible effect until the next 3-D frame.
+
+===== Constants =====
+
+Light-type aliases are provided in the ''Hotones::Lighting'' namespace so you
+don't need to pull in ''GFX::LightType'' directly.
+
+^ Constant ^ Underlying value ^ Description ^
+| ''Hotones::Lighting::Point'' | ''GFX::LightType::Point'' | Radiates in all directions from a position. |
+| ''Hotones::Lighting::Directional'' | ''GFX::LightType::Directional'' | Infinite-distance sun light, direction only. |
+| ''Hotones::Lighting::Spot'' | ''GFX::LightType::Spot'' | Cone-shaped, defined by position + direction + angles. |
+
+===== Functions =====
+
+==== Hotones::Lighting::SetAmbient(r, g, b [, intensity]) ====
+
+Set the scene-wide ambient (fill) light colour and strength.
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''r, g, b'' | ''int'' | 255, 255, 255 | Ambient colour (0 – 255). |
+| ''intensity'' | ''float'' | ''0.15f'' | Scalar multiplier (0 = no ambient, 1 = fully lit). |
+
+<code cpp>
+Hotones::Lighting::SetAmbient(20, 30, 60, 0.1f);   // dim blue night sky
+</code>
+
+----
+
+==== int Hotones::Lighting::Add(type, x, y, z, r, g, b [, intensity, range]) ====
+
+Allocate a light slot and return a **handle** (1 – 8).
+Returns ''0'' if all 8 slots are occupied.
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''type'' | ''GFX::LightType'' | — | ''Hotones::Lighting::Point / Directional / Spot''. |
+| ''x, y, z'' | ''float'' | — | World-space position (ignored for directional). |
+| ''r, g, b'' | ''int'' | — | Light colour (0 – 255). |
+| ''intensity'' | ''float'' | ''1.0f'' | Brightness multiplier. |
+| ''range'' | ''float'' | ''20.0f'' | Attenuation radius in world units (point / spot only). |
+
+**Returns:** ''int'' — Light handle, or ''0'' on failure.
+
+<code cpp>
+int lamp = Hotones::Lighting::Add(Hotones::Lighting::Point,
+                                  0.f, 4.f, 0.f,
+                                  255, 220, 160,
+                                  1.5f, 15.f);
+
+int sun = Hotones::Lighting::Add(Hotones::Lighting::Directional,
+                                 0.f, 0.f, 0.f,
+                                 200, 220, 255,
+                                 0.8f);
+Hotones::Lighting::SetDir(sun, -0.3f, -1.f, -0.5f);
+</code>
+
+----
+
+==== Hotones::Lighting::Remove(handle) ====
+
+Free the light slot so it can be reused.
+
+<code cpp>
+Hotones::Lighting::Remove(lamp);
+lamp = 0;
+</code>
+
+----
+
+==== GFX::LightDesc* Hotones::Lighting::Get(handle) ====
+
+Return a raw pointer to the ''LightDesc'' for direct field access.
+Returns ''nullptr'' if the handle is invalid.
+
+<code cpp>
+if (auto* l = Hotones::Lighting::Get(lamp)) {
+    l->range = 30.f;
+    l->color = { 1.f, 0.2f, 0.2f };   // linear red
+}
+</code>
+
+----
+
+==== Hotones::Lighting::SetPos(handle, x, y, z) ====
+
+Move a point or spot light to a new world-space position.
+
+<code cpp>
+// Attach a lantern to the player
+Vector3 p = player.body.position;
+Hotones::Lighting::SetPos(lantern, p.x, p.y + 1.2f, p.z);
+</code>
+
+----
+
+==== Hotones::Lighting::SetDir(handle, x, y, z) ====
+
+Set the direction vector for a directional or spot light.
+Does not need to be normalised — the shader normalises it.
+
+<code cpp>
+Hotones::Lighting::SetDir(sun, -0.5f, -1.0f, -0.3f);
+</code>
+
+----
+
+==== Hotones::Lighting::SetColor(handle, r, g, b) ====
+
+Change the colour of an existing light. ''r, g, b'' are 0 – 255.
+
+<code cpp>
+// Flicker red alarm light
+Hotones::Lighting::SetColor(alarm, 255, 20, 20);
+</code>
+
+----
+
+==== Hotones::Lighting::SetIntensity(handle, value) ====
+
+Set the brightness multiplier.  Values above 1 are valid.
+
+<code cpp>
+float wave = 1.f + 0.3f * sinf(GetTime() * 3.f);
+Hotones::Lighting::SetIntensity(lamp, wave);
+</code>
+
+----
+
+==== Hotones::Lighting::SetRange(handle, value) ====
+
+Set the attenuation radius in world units (point / spot only).
+
+<code cpp>
+Hotones::Lighting::SetRange(lamp, 30.0f);
+</code>
+
+----
+
+==== Hotones::Lighting::SetEnabled(handle, enabled) ====
+
+Toggle a light on or off without freeing its slot.
+
+<code cpp>
+Hotones::Lighting::SetEnabled(lamp, false);   // switch off
+Hotones::Lighting::SetEnabled(lamp, true);    // switch back on
+</code>
+
+----
+
+==== Hotones::Lighting::SetSpotAngles(handle, innerDeg, outerDeg) ====
+
+Set the inner and outer cone half-angles for a spot light, in **degrees**.
+The light is at full brightness inside the inner cone and fades to zero
+at the outer cone edge.
+
+^ Parameter ^ Description ^
+| ''innerDeg'' | Half-angle of the fully-lit inner cone. |
+| ''outerDeg'' | Half-angle of the fade-out outer cone (must be ≥ innerDeg). |
+
+<code cpp>
+int spot = Hotones::Lighting::Add(Hotones::Lighting::Spot,
+                                  0.f, 5.f, 0.f,
+                                  255, 255, 200, 2.0f, 12.f);
+Hotones::Lighting::SetDir(spot, 0.f, -1.f, 0.f);
+Hotones::Lighting::SetSpotAngles(spot, 10.f, 25.f);   // tight focused beam
+</code>
+
+===== Full example =====
+
+<code cpp>
+#include <Hotones.hpp>
+
+class MyScene {
+    int overheadLight = 0;
+    int sun = 0;
+
+public:
+    void Init() {
+        Hotones::Lighting::SetAmbient(30, 40, 80, 0.08f);
+
+        overheadLight = Hotones::Lighting::Add(Hotones::Lighting::Point,
+                                               0.f, 6.f, 0.f,
+                                               255, 200, 120, 1.8f, 18.f);
+
+        sun = Hotones::Lighting::Add(Hotones::Lighting::Directional,
+                                     0.f, 0.f, 0.f,
+                                     220, 230, 255, 0.6f);
+        Hotones::Lighting::SetDir(sun, -0.4f, -1.0f, -0.3f);
+    }
+
+    void Update() {
+        float wave = 1.f + 0.3f * sinf(GetTime() * 3.f);
+        Hotones::Lighting::SetIntensity(overheadLight, wave);
+    }
+};
+</code>

@@ -1,0 +1,117 @@
+====== Hotones::Audio ======
+
+Sound loading and playback through the engine's ''SoundBus''.
+Include: ''<Audio/Audio.hpp>''
+
+Works on both the windowed client and the headless server provided the audio
+device was successfully initialised by ''Ho_tones::InitAudioSystem()''.
+
+===== Functions =====
+
+==== Hotones::Audio::LoadSound(name, path) ====
+
+Load a sound file and register it under a logical name.  Multiple files can
+be registered under the same name to form a playback group for
+''PlayRandom'' / ''PlaySequential''.
+
+^ Parameter ^ Type ^ Description ^
+| ''name'' | ''const std::string&'' | Logical key used in subsequent play calls. |
+| ''path'' | ''const std::string&'' | Filesystem path to the audio file. |
+
+**Returns:** ''bool'' — ''true'' on success.
+
+<code cpp>
+Hotones::Audio::LoadSound("footstep", "assets/sounds/step1.wav");
+Hotones::Audio::LoadSound("footstep", "assets/sounds/step2.wav");
+Hotones::Audio::LoadSound("footstep", "assets/sounds/step3.wav");
+</code>
+
+----
+
+==== Hotones::Audio::Play(name [, gain]) ====
+
+Play the first loaded variant for ''name''.
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''name'' | ''const std::string&'' | — | Logical key passed to ''LoadSound''. |
+| ''gain'' | ''float'' | ''1.0f'' | Volume multiplier (0–2 typical). |
+
+**Returns:** ''bool'' — ''true'' if the sound was found and started.
+
+<code cpp>
+Hotones::Audio::Play("shoot");
+Hotones::Audio::Play("shoot", 0.5f);   // half volume
+</code>
+
+----
+
+==== Hotones::Audio::PlayRandom(name [, gain]) ====
+
+Play a random variant from the named sound group.
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''name'' | ''const std::string&'' | — | Base key for the sound group. |
+| ''gain'' | ''float'' | ''1.0f'' | Volume multiplier. |
+
+**Returns:** ''bool''
+
+----
+
+==== Hotones::Audio::PlaySequential(name [, gain]) ====
+
+Play variants in round-robin order — each call advances to the next loaded
+file in the group, cycling back to the first after the last.
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''name'' | ''const std::string&'' | — | Base key for the sound group. |
+| ''gain'' | ''float'' | ''1.0f'' | Volume multiplier. |
+
+**Returns:** ''bool''
+
+<code cpp>
+// Trigger a new step sound on every footstep event
+Hotones::Audio::PlaySequential("footstep");
+</code>
+
+----
+
+==== Hotones::Audio::PlaySequentialAsync(name [, gain]) ====
+
+Like ''PlaySequential'' but starts an independent overlapping voice each call,
+so multiple sounds from the same group can play simultaneously.
+Useful for footsteps, impacts, and other rapid-fire effects.
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''name'' | ''const std::string&'' | — | Base key for the sound group. |
+| ''gain'' | ''float'' | ''1.0f'' | Volume multiplier. |
+
+**Returns:** ''bool''
+
+----
+
+==== Hotones::Audio::SetVolume(vol) ====
+
+Set the master volume for all sounds played through the bus.
+
+^ Parameter ^ Type ^ Description ^
+| ''vol'' | ''int'' | Volume in the range ''0'' – ''100''. |
+
+<code cpp>
+Hotones::Audio::SetVolume(75);
+</code>
+
+----
+
+==== Hotones::Audio::GetVolume() ====
+
+**Returns:** ''int'' — Current master volume (0 – 100).
+
+----
+
+==== Hotones::Audio::StopAll() ====
+
+Immediately stop every currently playing voice.
+
+<code cpp>
+Hotones::Audio::StopAll();
+</code>

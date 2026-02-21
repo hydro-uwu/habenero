@@ -1,0 +1,64 @@
+====== Hotones::Render ======
+
+2-D / HUD drawing.
+Include: ''<Render/Render.hpp>''
+
+Call these functions from your scene's ''Draw()'' pass, **outside** of any
+''BeginMode3D'' / ''EndMode3D'' block.  All colour parameters are integers 0 – 255.
+
+===== Functions =====
+
+==== Hotones::Render::ClearScreen([r, g, b, a]) ====
+
+Fill the entire screen with a solid colour.  Typically called at the start of
+a ''Draw()'' pass.
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''r, g, b'' | ''int'' | 0, 0, 0 | Background colour (0 – 255). |
+| ''a'' | ''int'' | 255 | Alpha (255 = fully opaque). |
+
+<code cpp>
+Hotones::Render::ClearScreen(20, 20, 30);        // dark blue-grey
+Hotones::Render::ClearScreen(0, 0, 0, 255);      // pure black (explicit alpha)
+</code>
+
+----
+
+==== Hotones::Render::DrawText(text, x, y [, fontSize, r, g, b, a]) ====
+
+Draw a string using the engine's default font.
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''text'' | ''const std::string&'' | — | Text to display. |
+| ''x'' | ''int'' | — | Left edge in pixels (screen space). |
+| ''y'' | ''int'' | — | Top edge in pixels. |
+| ''fontSize'' | ''int'' | 20 | Font size in points. |
+| ''r, g, b'' | ''int'' | 255, 255, 255 | Text colour. |
+| ''a'' | ''int'' | 255 | Alpha. |
+
+<code cpp>
+Hotones::Render::DrawText("Score: " + std::to_string(score),
+                          10, 10, 28,
+                          255, 230, 0);   // yellow
+
+Hotones::Render::DrawText("Paused", screenW / 2, screenH / 2, 40);
+</code>
+
+----
+
+==== Hotones::Render::DrawRect(x, y, w, h [, r, g, b, a]) ====
+
+Draw a filled 2-D rectangle.
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''x, y'' | ''int'' | — | Top-left corner in pixels. |
+| ''w'' | ''int'' | — | Width in pixels. |
+| ''h'' | ''int'' | — | Height in pixels. |
+| ''r, g, b'' | ''int'' | 255, 255, 255 | Fill colour. |
+| ''a'' | ''int'' | 255 | Alpha. |
+
+<code cpp>
+// Semi-transparent dark HUD bar across the top
+Hotones::Render::DrawRect(0, 0, 640, 40, 0, 0, 0, 160);
+Hotones::Render::DrawText("Habanero Hotel", 8, 8, 24);
+</code>

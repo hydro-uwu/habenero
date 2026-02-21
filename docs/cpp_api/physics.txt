@@ -1,0 +1,120 @@
+====== Hotones::Physics ======
+
+Physics query helpers backed by the engine's BVH-accelerated static mesh system.
+Include: ''<Physics/PhysicsHelpers.hpp>''
+
+Mesh handles are obtained from ''Hotones::Physics::RegisterStaticMeshFromModel()''
+(declared in ''<Physics/PhysicsSystem.hpp>'').
+
+===== Result structs =====
+
+Both query functions return a result struct that evaluates to ''true'' in a
+boolean context when an intersection was found.
+
+==== RaycastResult ====
+
+<code cpp>
+struct RaycastResult {
+    bool    hit;      // true when intersection occurred
+    Vector3 pos;      // world-space hit position
+    Vector3 normal;   // surface normal at hit (unit vector, facing the ray)
+    float   t;        // parametric distance from origin along dir
+    explicit operator bool() const { return hit; }
+};
+</code>
+
+==== SweepResult ====
+
+<code cpp>
+struct SweepResult {
+    bool    hit;      // true when intersection occurred
+    Vector3 pos;      // world-space first contact position
+    Vector3 normal;   // contact normal (unit vector)
+    float   t;        // fraction [0, 1] along the sweep segment
+    explicit operator bool() const { return hit; }
+};
+</code>
+
+===== Functions =====
+
+==== Hotones::Physics::Raycast(handle, origin, dir [, maxDist]) ====
+
+Cast a ray against a registered static mesh.
+
+The direction vector does **not** need to be normalised.  The returned ''t''
+is in the same units as ''dir'''s length (i.e. if ''dir'' is a unit vector,
+''t'' equals the distance in world units).
+
+^ Parameter ^ Type ^ Default ^ Description ^
+| ''handle'' | ''int'' | — | Handle from ''RegisterStaticMeshFromModel''. |
+| ''origin'' | ''Vector3'' | — | Ray origin in world space. |
+| ''dir'' | ''Vector3'' | — | Ray direction (unnormalised OK). |
+| ''maxDist'' | ''float'' | ''1000.f'' | Maximum ray length. |
+
+**Returns:** ''RaycastResult''
+
+<code cpp>
+// Ground-check: shoot straight down from the player
+Vector3 origin = player.body.position;
+auto hit = Hotones::Physics::Raycast(worldHandle, origin, { 0.f, -1.f, 0.f }, 50.f);
+if (hit) {
+    float groundY  = hit.pos.y;
+    Vector3 normal = hit.normal;
+}
+</code>
+
+----
+
+==== Hotones::Physics::SweepSphere(handle, start, end, radius) ====
+
+Sweep a sphere from ''start'' to ''end'' and return the first contact point.
+Useful for continuous character-movement collision detection.
+
+''t ∈ [0, 1]'' is the fraction along the segment where contact first occurs;
+''hit.pos'' is the sphere centre at that point.
+
+^ Parameter ^ Type ^ Description ^
+| ''handle'' | ''int'' | Handle from ''RegisterStaticMeshFromModel''. |
+| ''start'' | ''Vector3'' | Sphere centre at the sweep origin. |
+| ''end'' | ''Vector3'' | Sphere centre at the sweep destination. |
+| ''radius'' | ''float'' | Sphere radius. |
+
+**Returns:** ''SweepResult''
+
+<code cpp>
+Vector3 start = player.body.position;
+Vector3 end   = Vector3Add(start, desiredMovement);
+float   r     = 0.4f;   // player capsule radius
+
+auto sweep = Hotones::Physics::SweepSphere(worldHandle, start, end, r);
+if (sweep) {
+    // Stop at contact and slide along the surface normal
+    Vector3 travel = Vector3Subtract(end, sweep.pos);
+    float   vn     = Vector3DotProduct(travel, sweep.normal);
+    Vector3 slide  = Vector3Subtract(travel, Vector3Scale(sweep.normal, vn));
+    player.body.position = Vector3Add(sweep.pos, slide);
+} else {
+    player.body.position = end;
+}
+</code>
+
+===== Registering a mesh =====
+
+Before any queries can be made, register the collision geometry once (typically
+during scene init):
+
+<code cpp>
+#include <Physics/PhysicsSystem.hpp>
+
+Model worldModel = LoadModel("assets/world.obj");
+int worldHandle  = Hotones::Physics::RegisterStaticMeshFromModel(worldModel,
+                                                                  { 0.f, 0.f, 0.f });
+// worldHandle is now valid for Raycast / SweepSphere queries
+</code>
+
+Free it when the scene unloads:
+
+<code cpp>
+Hotones::Physics::UnregisterStaticMesh(worldHandle);
+worldHandle = -1;
+</code>

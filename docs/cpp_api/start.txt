@@ -1,0 +1,70 @@
+====== Hotones C++ Game API ======
+
+This section documents every convenience namespace exposed to C++ game code.
+Each namespace is an exact mirror of its Lua counterpart so logic can be written
+identically in either language.
+
+Include the whole API with a single header:
+
+<code cpp>
+#include <Hotones.hpp>
+</code>
+
+Or include only what you need:
+
+<code cpp>
+#include <Input/Input.hpp>
+#include <Audio/Audio.hpp>
+#include <Render/Render.hpp>
+#include <Lighting/Lighting.hpp>
+#include <Draw3D/Draw3D.hpp>
+#include <Physics/PhysicsHelpers.hpp>
+</code>
+
+All headers live under ''src/include/'' which is already on the compiler include path.
+
+===== Namespaces =====
+
+^ Namespace ^ Header ^ Lua equivalent ^ Purpose ^
+| ''Hotones::Input::'' | ''<Input/Input.hpp>'' | ''input.*'' | Keyboard, mouse, typed characters |
+| ''Hotones::Audio::'' | ''<Audio/Audio.hpp>'' | ''audio.*'' | Sound loading and playback |
+| ''Hotones::Render::'' | ''<Render/Render.hpp>'' | ''render.*'' | 2-D / HUD drawing |
+| ''Hotones::Lighting::'' | ''<Lighting/Lighting.hpp>'' | ''lighting.*'' | Dynamic light management |
+| ''Hotones::Draw3D::'' | ''<Draw3D/Draw3D.hpp>'' | ''mesh.*'' | 3-D primitive drawing |
+| ''Hotones::Physics::'' | ''<Physics/PhysicsHelpers.hpp>'' | ''physics.*'' | Raycast / sphere-sweep queries |
+
+===== Minimal scene skeleton =====
+
+<code cpp>
+#include <Hotones.hpp>
+#include <raylib.h>
+
+class MyScene {
+public:
+    void Init() {
+        Hotones::Audio::LoadSound("shoot", "assets/sounds/shoot.wav");
+        lightHandle = Hotones::Lighting::Add(Hotones::Lighting::Point,
+                                             0, 5, 0,
+                                             255, 220, 160, 1.5f, 18.f);
+    }
+
+    void Update() {
+        float dt = GetFrameTime();
+        if (Hotones::Input::IsKeyPressed(KEY_SPACE))
+            Hotones::Audio::Play("shoot");
+    }
+
+    void Draw3D() {
+        Hotones::Draw3D::Grid(20, 1.f);
+        Hotones::Draw3D::Axes(0, 0.01f, 0, 2.f);
+    }
+
+    void Draw() {
+        Hotones::Render::ClearScreen(20, 20, 30);
+        Hotones::Render::DrawText("Hello C++!", 10, 10, 24, 255, 255, 0);
+    }
+
+private:
+    int lightHandle = 0;
+};
+</code>

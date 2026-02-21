@@ -1,0 +1,161 @@
+====== Hotones::Input ======
+
+Keyboard, mouse, and typed-character queries.
+Include: ''<Input/Input.hpp>''
+
+''InputHandler::Update()'' is called automatically once per frame by the engine
+before any scene or script update, so all reads within a frame are consistent.
+
+> **Headless server note:** All functions are safe to call but return ''false'' / ''0''
+> when no window is present.
+
+===== Functions =====
+
+==== Hotones::Input::IsKeyDown(key) ====
+
+Returns ''true'' while the key is held this frame.
+
+^ Parameter ^ Type ^ Description ^
+| ''key'' | ''int'' | A raylib ''KEY_*'' constant (e.g. ''KEY_W'', ''KEY_SPACE''). |
+
+**Returns:** ''bool''
+
+<code cpp>
+if (Hotones::Input::IsKeyDown(KEY_W)) {
+    // move forward
+}
+</code>
+
+----
+
+==== Hotones::Input::IsKeyPressed(key) ====
+
+Returns ''true'' on the **first frame** the key is pressed (edge trigger).
+
+^ Parameter ^ Type ^ Description ^
+| ''key'' | ''int'' | A raylib ''KEY_*'' constant. |
+
+**Returns:** ''bool''
+
+<code cpp>
+if (Hotones::Input::IsKeyPressed(KEY_SPACE)) {
+    player.Jump();
+}
+</code>
+
+----
+
+==== Hotones::Input::IsKeyReleased(key) ====
+
+Returns ''true'' on the frame the key is released.
+
+^ Parameter ^ Type ^ Description ^
+| ''key'' | ''int'' | A raylib ''KEY_*'' constant. |
+
+**Returns:** ''bool''
+
+----
+
+==== Hotones::Input::IsKeyPressedRepeat(key) ====
+
+Returns ''true'' on the first press **and** again on every OS key-repeat event
+while the key is held.  Identical to the Lua ''input.isKeyPressedRepeat'' binding.
+Useful for text-editing navigation (cursor movement, delete, etc.).
+
+^ Parameter ^ Type ^ Description ^
+| ''key'' | ''int'' | A raylib ''KEY_*'' constant. |
+
+**Returns:** ''bool''
+
+<code cpp>
+// Scroll a menu up while the key is held
+if (Hotones::Input::IsKeyPressedRepeat(KEY_UP)) {
+    menu.SelectPrev();
+}
+</code>
+
+----
+
+==== Hotones::Input::IsMouseDown(button) ====
+
+Returns ''true'' while the mouse button is held.
+
+^ Parameter ^ Type ^ Description ^
+| ''button'' | ''int'' | ''MOUSE_BUTTON_LEFT'', ''MOUSE_BUTTON_RIGHT'', or ''MOUSE_BUTTON_MIDDLE''. |
+
+**Returns:** ''bool''
+
+----
+
+==== Hotones::Input::IsMousePressed(button) ====
+
+Returns ''true'' on the first frame the button is pressed.
+
+^ Parameter ^ Type ^ Description ^
+| ''button'' | ''int'' | Mouse button constant. |
+
+**Returns:** ''bool''
+
+----
+
+==== Hotones::Input::GetMousePos() ====
+
+**Returns:** ''Vector2'' — Screen-space cursor position in pixels.
+
+<code cpp>
+Vector2 pos = Hotones::Input::GetMousePos();
+</code>
+
+----
+
+==== Hotones::Input::GetMouseDelta() ====
+
+**Returns:** ''Vector2'' — Mouse movement since the last frame (dx, dy).
+
+<code cpp>
+Vector2 delta = Hotones::Input::GetMouseDelta();
+yaw   -= delta.x * sensitivity;
+pitch += delta.y * sensitivity;
+</code>
+
+----
+
+==== Hotones::Input::GetMouseWheel() ====
+
+**Returns:** ''float'' — Scroll wheel delta this frame (positive = up/forward).
+
+----
+
+==== Hotones::Input::GetChar() ====
+
+Dequeue one typed Unicode codepoint buffered this frame.
+Returns ''0'' when the queue is empty.
+Call in a loop to drain all typed characters:
+
+<code cpp>
+int ch;
+while ((ch = Hotones::Input::GetChar()) != 0) {
+    textBuffer += static_cast<char>(ch);
+}
+</code>
+
+The buffer is filled by ''InputHandler::Update()'' and cleared at the start of
+the next frame.
+
+===== Key constants =====
+
+Use standard raylib ''KEY_*'' constants directly — they are integers and
+are passed straight to the underlying raylib functions.
+
+^ Example constants ^
+| ''KEY_A'' … ''KEY_Z'' |
+| ''KEY_ZERO'' … ''KEY_NINE'' |
+| ''KEY_F1'' … ''KEY_F12'' |
+| ''KEY_SPACE'', ''KEY_ENTER'', ''KEY_ESCAPE'', ''KEY_TAB'' |
+| ''KEY_BACKSPACE'', ''KEY_DELETE'' |
+| ''KEY_UP'', ''KEY_DOWN'', ''KEY_LEFT'', ''KEY_RIGHT'' |
+| ''KEY_LEFT_SHIFT'', ''KEY_RIGHT_SHIFT'' |
+| ''KEY_LEFT_CONTROL'', ''KEY_RIGHT_CONTROL'' |
+| ''KEY_LEFT_ALT'', ''KEY_RIGHT_ALT'' |
+
+See the raylib cheatsheet or ''raylib.h'' for the full list.
